@@ -97,34 +97,32 @@ def _templater(intent: str, title: str, details: dict, profile: Profile) -> Gene
         helper = profile.templater_user_scripts[0]
         helper_note = f'\nHelper: <% tp.user.{helper}() %>'
         profile_hints.append(f"Known tp.user helpers: {', '.join(profile.templater_user_scripts)}")
-    markdown = dedent(
-        f"""
-        ---
-        created: <% tp.file.creation_date("YYYY-MM-DD") %>
-        title: {title}
-        ---
-
-        # <% tp.file.title %>
-
-        <%* const today = tp.date.now("YYYY-MM-DD") %>
-        Date: <% today %>{helper_note}
-        """
-    ).strip()
+    lines = [
+        '---',
+        f'created: <% tp.file.creation_date("YYYY-MM-DD") %>',
+        f'title: {title}',
+        '---',
+        '',
+        '# <% tp.file.title %>',
+        '',
+        '<%* const today = tp.date.now("YYYY-MM-DD") %>',
+        f'Date: <% today %>{helper_note}',
+    ]
+    markdown = '\n'.join(lines)
     return GeneratedSnippet(pack="templater", intent=intent, markdown=markdown, profile_hints=profile_hints)
 
 
 def _quickadd(intent: str, title: str, details: dict, profile: Profile) -> GeneratedSnippet:
     project_var = profile.quickadd_known_variables[0] if profile.quickadd_known_variables else "project"
     summary_var = profile.quickadd_known_variables[1] if len(profile.quickadd_known_variables) > 1 else "summary"
-    markdown = dedent(
-        f"""
-        # {title}
-
-        Date: {{DATE}}
-        Project: {{VALUE:{project_var}}}
-        Summary: {{VALUE:{summary_var}}}
-        """
-    ).strip()
+    lines = [
+        f'# {title}',
+        '',
+        f'Date: {{{{DATE}}}}',
+        f'Project: {{{{VALUE:{project_var}}}}}',
+        f'Summary: {{{{VALUE:{summary_var}}}}}',
+    ]
+    markdown = '\n'.join(lines)
     hints = []
     if profile.quickadd_choice_names:
         hints.append(f"Known QuickAdd choices: {', '.join(profile.quickadd_choice_names)}")
@@ -152,13 +150,8 @@ def _js_engine(intent: str, title: str, details: dict, profile: Profile) -> Gene
     if profile.js_engine_helpers:
         helper_line = f"\n// available helper: {profile.js_engine_helpers[0]}"
         hints.append(f"Known JS Engine helpers: {', '.join(profile.js_engine_helpers)}")
-    markdown = dedent(
-        f"""
-        ```js-engine
-        return engine.markdown.create('*Hello from JS Engine*');{helper_line}
-        ```
-        """
-    ).strip()
+    body = f"return engine.markdown.create('*Hello from JS Engine*');{helper_line}"
+    markdown = f"```js-engine\n{body}\n```"
     return GeneratedSnippet(pack="js_engine", intent=intent, markdown=markdown, profile_hints=hints)
 
 

@@ -1,174 +1,343 @@
 # Obsidian Spec MCP
 
-A spec-centric MCP server for Obsidian authoring.
+A spec-centric [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that gives AI assistants authoritative knowledge of Obsidian markdown syntax, community plugin conventions, and vault-specific configuration — so they generate correct notes on the first try.
 
-This server is designed to complement a write-capable vault MCP such as `mcp-obsidian`.
+> **Read-only by design.** This server validates and generates markdown but never writes to your vault. Pair it with a vault-write MCP like [`mcp-obsidian`](https://github.com/SecretiveShell/MCP-obsidian) for the complete workflow.
 
-Use this server when you want the model to:
-- look up Obsidian-flavored authoring rules,
-- generate syntax-aware snippets,
-- validate markdown before writing it to the vault,
-- switch between plugin-specific syntax packs,
-- tailor generation and validation to your real plugin settings.
+---
 
-Bundled packs:
-- Core Obsidian
-- Tasks
-- Templater
-- QuickAdd
-- Meta Bind
-- JS Engine
-- Docxer
-- Linter
+## Features
 
-## Why split spec from vault writes?
+| Capability | What it does |
+|---|---|
+| **Syntax lookup** | Fetch authoritative rules and examples for any bundled pack |
+| **Validation** | Check markdown against one or more packs before writing |
+| **Snippet generation** | Produce starter snippets tailored to your vault's profile |
+| **Runtime config** | Ingest your actual plugin config files so validation matches your vault |
+| **Alias resolution** | Normalize common misspellings (`doxcer` → `docxer`, `metabind` → `meta_bind`) |
+| **Multi-pack** | Validate against multiple packs at once (e.g. Tasks + Linter) |
 
-A vault MCP is good at file access and patching content.
-A spec MCP is good at answering questions like:
-- "What syntax should I use here?"
-- "Is this valid Tasks markdown for my custom statuses?"
-- "Give me a Templater template that also survives my Linter rules."
+## Bundled Packs
 
-This server is intentionally read-only and generation-oriented.
-Pair it with a separate MCP that can read and write your vault.
+| Pack | Syntax Domains | Description |
+|---|---|---|
+| **core** | wikilinks, embeds, callouts, properties | Core Obsidian markdown rules |
+| **tasks** | task-line, tasks-query | Tasks plugin: checklist items, dates, priorities, query blocks |
+| **templater** | templater-inline, templater-exec | Templater: `<% %>` commands, `tp.*` functions |
+| **quickadd** | quickadd-format, quickadd-choice | QuickAdd: `{{VALUE:x}}` placeholders, capture templates |
+| **meta_bind** | meta-bind-input, meta-bind-block, meta-bind-button | Meta Bind: interactive fields bound to frontmatter |
+| **js_engine** | js-engine-block | JS Engine: executable JavaScript code blocks |
+| **docxer** | docxer-workflow | Docxer: `.docx` to markdown conversion workflow |
+| **linter** | linter-profile, lint-style | Linter: heading, spacing, and frontmatter hygiene rules |
 
-## What is included
+---
 
-- MCP resources for pack metadata, bundled docs, and starter profiles
-- MCP tools for listing packs, reading docs, searching specs, validating markdown, and generating starter snippets
-- MCP prompts for authoring Obsidian markdown, Tasks snippets, and Templater templates
-- Built-in normalization for common aliases, including `doxcer` -> `docxer`
-- A runtime config layer that can ingest local plugin config files and profile overlays
+## Quick Start
 
-## Install
+### Prerequisites
 
-We recommend `uv`, in line with the MCP Python SDK docs.
+- Python ≥ 3.11
+- [`uv`](https://docs.astral.sh/uv/) (recommended) or `pip`
+
+### Install
 
 ```bash
+git clone https://github.com/YourOrg/Obsidian-Spec-MCP.git
+cd Obsidian-Spec-MCP
 uv sync
 ```
 
-## Run over stdio
+### Run
 
+**stdio** (for MCP clients like Claude Desktop, Windsurf, Cursor):
 ```bash
 uv run obsidian-spec-mcp
 ```
 
-## Run over streamable HTTP
-
+**Streamable HTTP** (for web-based or multi-client setups):
 ```bash
 uv run python -c "from obsidian_spec_mcp.server import mcp; mcp.run(transport='streamable-http')"
+# Runs on http://127.0.0.1:8000
 ```
 
-## Example tools
-
-- `list_packs`
-- `get_pack_info`
-- `search_spec`
-- `get_doc`
-- `get_effective_profile`
-- `validate_obsidian_markdown`
-- `generate_obsidian_snippet`
-- `normalized_pack_name`
-
-## Example resources
-
-- `obsidian://packs/index`
-- `obsidian://packs/tasks`
-- `obsidian://docs/templater`
-- `obsidian://profiles/default`
-
-## Runtime config layer
-
-This version can merge the bundled profile with local plugin config files.
-That lets the server validate and generate against your actual vault conventions instead of generic defaults.
-
-Supported runtime inputs:
-- profile overlay JSON or YAML
-- Tasks config
-- Linter config
-- QuickAdd config
-- Templater config
-- Meta Bind config
-- JS Engine config
-- Docxer config
-
-You can pass paths directly into the tools, or set environment variables:
+### Verify
 
 ```bash
-export OBS_SPEC_PROFILE_PATH=/path/to/profile_overlay.json
-export OBS_SPEC_TASKS_CONFIG_PATH=/path/to/tasks.json
-export OBS_SPEC_LINTER_CONFIG_PATH=/path/to/linter.json
-export OBS_SPEC_QUICKADD_CONFIG_PATH=/path/to/quickadd.json
-export OBS_SPEC_TEMPLATER_CONFIG_PATH=/path/to/templater.json
-export OBS_SPEC_META_BIND_CONFIG_PATH=/path/to/meta_bind.json
-export OBS_SPEC_JS_ENGINE_CONFIG_PATH=/path/to/js_engine.json
-export OBS_SPEC_DOCXER_CONFIG_PATH=/path/to/docxer.json
+uv run pytest tests/ -v
 ```
 
-Then call `get_effective_profile` to confirm what was loaded.
+---
 
-## Example workflow with mcp-obsidian
+## Client Configuration
 
-1. Ask this server for the right syntax and pattern.
-2. Load the effective profile from your local config files.
-3. Generate or validate markdown against the relevant packs.
-4. Send the validated content to `mcp-obsidian` for insertion into the vault.
+### Windsurf / Cascade
 
-## Runtime examples
+Add to `~/.codeium/windsurf/mcp_config.json`:
 
-Starter runtime config files are included in `examples/runtime_configs/`.
+```json
+{
+  "mcpServers": {
+    "obsidian-spec": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/Obsidian-Spec-MCP", "obsidian-spec-mcp"]
+    }
+  }
+}
+```
 
-Typical validation call pattern:
+### Claude Desktop
+
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "obsidian-spec": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/Obsidian-Spec-MCP", "obsidian-spec-mcp"]
+    }
+  }
+}
+```
+
+### With Runtime Config (environment variables)
+
+```json
+{
+  "mcpServers": {
+    "obsidian-spec": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/Obsidian-Spec-MCP", "obsidian-spec-mcp"],
+      "env": {
+        "OBS_SPEC_TASKS_CONFIG_PATH": "/path/to/vault/.obsidian/plugins/obsidian-tasks-plugin/data.json",
+        "OBS_SPEC_LINTER_CONFIG_PATH": "/path/to/vault/.obsidian/plugins/obsidian-linter/data.json"
+      }
+    }
+  }
+}
+```
+
+---
+
+## Tools
+
+| Tool | Description |
+|---|---|
+| `list_packs` | List all registered spec packs with metadata |
+| `get_pack_info` | Get detailed metadata and source links for a pack |
+| `search_spec` | Search bundled docs by keyword across packs |
+| `get_doc` | Get the full spec document for a pack |
+| `get_effective_profile` | Load the merged profile with runtime config overlays |
+| `validate_obsidian_markdown` | Validate markdown against one or more packs |
+| `generate_obsidian_snippet` | Generate a starter snippet for a pack and intent |
+| `normalized_pack_name` | Resolve aliases to canonical pack names |
+
+### Common Intents for `generate_obsidian_snippet`
+
+| Pack | Intent | Output |
+|---|---|---|
+| core | `note` | Frontmatter + heading + callout + wikilinks |
+| tasks | `task-line` | Single task with priority, date, status |
+| tasks | `query` | Fenced `tasks` query block |
+| templater | `project-template` | Full template with `tp.*` commands |
+| quickadd | `capture` | Capture template with `{{VALUE:x}}` placeholders |
+| meta_bind | `form` | Inline INPUT/VIEW fields |
+| js_engine | `script` | Fenced `js-engine` block |
+| docxer | `convert` | `.docx` conversion workflow note |
+| linter | `hygiene` | Clean note skeleton |
+
+## Resources
+
+| URI | Returns |
+|---|---|
+| `obsidian://packs/index` | JSON array of all pack metadata |
+| `obsidian://packs/{name}` | JSON object for a single pack |
+| `obsidian://docs/{name}` | Full markdown spec document for a pack |
+| `obsidian://profiles/{name}` | Profile configuration as JSON |
+
+## Prompts
+
+| Prompt | Parameters | Use case |
+|---|---|---|
+| Create Obsidian Markdown | `goal`, `packs_csv`, `strict` | General Obsidian authoring |
+| Create Tasks Snippet | `goal`, `mode` | Tasks-specific generation |
+| Create Templater Template | `goal` | Templater template authoring |
+
+---
+
+## Recommended Workflow
+
+The ideal workflow pairs this server with a vault-write MCP like `mcp-obsidian`:
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   AI Assistant                       │
+│                                                      │
+│  1. get_doc("tasks")          ← Lookup syntax        │
+│  2. generate_obsidian_snippet ← Generate draft       │
+│  3. validate_obsidian_markdown ← Validate draft      │
+│  4. mcp-obsidian: append_content ← Write to vault   │
+│                                                      │
+│  obsidian-spec-mcp ──────────── mcp-obsidian         │
+│  (read-only, spec)              (read-write, vault)  │
+└─────────────────────────────────────────────────────┘
+```
+
+### Why Two Servers?
+
+| Concern | obsidian-spec-mcp | mcp-obsidian |
+|---|---|---|
+| **Reads vault files** | No | Yes |
+| **Writes vault files** | No | Yes |
+| **Knows plugin syntax** | Yes | No |
+| **Validates markdown** | Yes | No |
+| **Generates snippets** | Yes | No |
+| **Requires Obsidian running** | No | Yes |
+
+This separation follows the MCP best practice of **single-responsibility servers** — each server does one thing well.
+
+---
+
+## Runtime Configuration
+
+The server can ingest your actual plugin config files to tailor validation and generation to your vault's real settings.
+
+### Supported Inputs
+
+| Config | Tool Parameter | Environment Variable |
+|---|---|---|
+| Profile overlay | `profile_path` | `OBS_SPEC_PROFILE_PATH` |
+| Tasks plugin | `tasks_path` | `OBS_SPEC_TASKS_CONFIG_PATH` |
+| Linter plugin | `linter_path` | `OBS_SPEC_LINTER_CONFIG_PATH` |
+| QuickAdd plugin | `quickadd_path` | `OBS_SPEC_QUICKADD_CONFIG_PATH` |
+| Templater plugin | `templater_path` | `OBS_SPEC_TEMPLATER_CONFIG_PATH` |
+| Meta Bind plugin | `meta_bind_path` | `OBS_SPEC_META_BIND_CONFIG_PATH` |
+| JS Engine plugin | `js_engine_path` | `OBS_SPEC_JS_ENGINE_CONFIG_PATH` |
+| Docxer plugin | `docxer_path` | `OBS_SPEC_DOCXER_CONFIG_PATH` |
+
+You can pass config paths **per-call** (via tool parameters) or set them as **environment variables** in your MCP client config. Call `get_effective_profile` to verify what was loaded.
+
+### Example: Validate with Runtime Config
 
 ```json
 {
   "markdown": "- [/] Draft proposal #task ⏫ 📅 2026-04-05",
   "packs": ["tasks", "linter"],
-  "tasks_path": "examples/runtime_configs/tasks.json",
-  "linter_path": "examples/runtime_configs/linter.json"
+  "tasks_path": "/path/to/vault/.obsidian/plugins/obsidian-tasks-plugin/data.json",
+  "linter_path": "/path/to/vault/.obsidian/plugins/obsidian-linter/data.json"
 }
 ```
 
-Typical generation call pattern:
+### Example: Generate with Runtime Config
 
 ```json
 {
   "pack": "templater",
   "intent": "project-template",
   "title": "Project Alpha",
-  "templater_path": "examples/runtime_configs/templater.json"
+  "templater_path": "/path/to/vault/.obsidian/plugins/templater-obsidian/data.json"
 }
 ```
 
-## Notes on pack scope
+Starter config examples are included in [`examples/runtime_configs/`](examples/runtime_configs/).
+
+---
+
+## Pack Details
+
+### Core
+Validates wikilinks, embeds, callouts, and YAML frontmatter properties. Respects the profile's `use_wikilinks` and `prefer_properties` settings.
 
 ### Tasks
-This pack validates markdown checklist lines and fenced `tasks` query blocks, and can honor custom status symbols and global filters from runtime config.
+Validates checklist task lines (status symbols, priority emojis, date markers, recurrence) and fenced `tasks` query blocks. Honors custom statuses, global filters, and date priority from runtime config.
 
 ### Templater
-This pack focuses on command delimiters and starter patterns, and can incorporate known `tp.user` helper names.
+Validates `<% %>` interpolation and `<%* %>` execution tags for balanced delimiters. Checks `tp.user.*` references against configured user scripts.
 
 ### QuickAdd
-This pack focuses on format tokens and starter placeholder patterns, and can incorporate known variable and choice names.
+Validates `{{VALUE:x}}` and `{{DATE}}` format placeholders for balanced braces. Checks variable names against configured known variables.
 
 ### Meta Bind
-This pack focuses on inline `INPUT[...]`, `VIEW[...]`, and related patterns, and can incorporate field-type conventions.
+Validates `INPUT[type:property]`, `VIEW[property]`, and `BUTTON[id]` syntax. Checks field types against configured `meta_bind_field_types`.
 
 ### JS Engine
-This pack focuses on fenced `js-engine` blocks and can surface configured helper names.
+Validates fenced `js-engine` code blocks for proper opening/closing. Surfaces configured helper script names in generated snippets.
 
 ### Docxer
-This pack is workflow-oriented rather than a custom markdown grammar, but can carry local defaults for input and output paths.
+Validates that notes referencing `.docx` files also mention a `.md` output. Uses configured default source/output paths in generated snippets.
 
 ### Linter
-This pack expresses hygiene rules that help generated notes survive local linting and can honor local style policy.
+Validates heading structure (single H1), blank line normalization, and frontmatter placement. Driven by `linter_expectations` from runtime config.
 
-## Extend it
+---
 
-Useful next steps:
-- replace the bundled docs with fuller local mirrors of the official plugin docs,
-- read actual Obsidian plugin data files directly from a vault path,
-- add stricter validators for each plugin pack,
-- add prompt variants for your most common note patterns,
-- add downstream orchestration so a client can validate here and write through `mcp-obsidian` in one flow.
+## Development
+
+### Project Structure
+
+```
+obsidian_spec_mcp/
+├── __init__.py
+├── server.py          # MCP server — tools, resources, prompts
+├── registry.py        # Pack registration, metadata, doc loading
+├── validators.py      # Per-pack markdown validation logic
+├── renderers.py       # Per-pack snippet generation
+├── config.py          # Runtime config loading and profile merging
+├── models.py          # Pydantic models (PackInfo, Profile, etc.)
+├── docs/              # Bundled spec documents (one .md per pack)
+│   ├── core.md
+│   ├── tasks.md
+│   ├── templater.md
+│   ├── quickadd.md
+│   ├── meta_bind.md
+│   ├── js_engine.md
+│   ├── docxer.md
+│   └── linter.md
+└── profiles/
+    └── default_profile.json
+```
+
+### Running Tests
+
+```bash
+# All tests (unit + gauntlet)
+uv run pytest tests/ -v
+
+# Just the gauntlet (comprehensive per-pack validation)
+uv run pytest tests/test_gauntlet.py -v
+```
+
+### Adding a New Pack
+
+1. **Register** — Add a `PackInfo` entry in `registry.py` with metadata, syntax kinds, docs, and examples.
+2. **Document** — Create `docs/your_pack.md` with rules, examples, and edge cases.
+3. **Validate** — Add a `_validate_your_pack()` function in `validators.py`.
+4. **Render** — Add a `_your_pack()` function in `renderers.py`.
+5. **Wire up** — Add the pack to the dispatcher dicts in `validators.py` and `renderers.py`.
+6. **Test** — Add test cases in `tests/test_gauntlet.py` and seed notes in the test vault.
+7. **Alias** — Add common aliases in `registry.py`'s `_ALIASES` dict.
+
+### Extending Validators
+
+Each pack's validator receives the markdown string and the effective `Profile`. It returns a list of `ValidationIssue` objects with severity (`error`, `warning`, `info`), a message, and an optional suggestion. Keep validators fast and deterministic — they run on every call.
+
+### Extending Renderers
+
+Each pack's renderer receives the intent, title, details dict, and `Profile`. It returns a `GeneratedSnippet` with the markdown string, notes, and profile-specific hints. Generated snippets should always pass their own pack's validator.
+
+---
+
+## Extending It
+
+Ideas for contributors and power users:
+
+- **Fuller docs** — Replace bundled docs with comprehensive local mirrors of official plugin documentation.
+- **Direct vault config** — Read plugin `data.json` files directly from a vault path instead of requiring explicit paths.
+- **Stricter validators** — Add more granular validation rules for each pack.
+- **Custom prompts** — Add prompt variants for your most common note patterns.
+- **Orchestration** — Build a meta-tool that validates here and writes through `mcp-obsidian` in one flow.
+- **New packs** — Add support for Dataview, Canvas, Database Folder, or any other Obsidian plugin.
+
+## License
+
+See [pyproject.toml](pyproject.toml) for project metadata.

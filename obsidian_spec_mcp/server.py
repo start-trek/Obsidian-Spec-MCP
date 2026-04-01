@@ -12,11 +12,22 @@ from .renderers import generate_snippet
 from .validators import validate_markdown
 
 INSTRUCTIONS = (
-    "Obsidian Spec MCP is a spec-centric MCP server for Obsidian authoring. "
-    "Use resources and search tools to fetch authoritative pack guidance before generating markdown. "
-    "Prefer Tasks, Templater, QuickAdd, Meta Bind, JS Engine, Docxer, and Linter syntax only when the corresponding pack is enabled. "
-    "Validate generated markdown before writing it to a vault through a separate write-capable MCP server such as mcp-obsidian. "
-    "When runtime plugin config files are available, load them to tailor generation and validation to the actual vault."
+    "Obsidian Spec MCP provides authoritative syntax references, validation, "
+    "and snippet generation for Obsidian markdown and popular community plugins. "
+    "\n\n"
+    "## Recommended workflow\n"
+    "1. **Lookup** — call `get_doc` or `search_spec` to understand correct syntax for the target pack(s).\n"
+    "2. **Generate** — call `generate_obsidian_snippet` to produce a starter snippet tailored to the user's profile.\n"
+    "3. **Validate** — call `validate_obsidian_markdown` on the draft before delivering it to the user.\n"
+    "4. **Write** — use a separate vault-write server (e.g. mcp-obsidian) to persist the validated note.\n"
+    "\n"
+    "## Important guidelines\n"
+    "- This server is **read-only**. It cannot write to an Obsidian vault. Use mcp-obsidian for writes.\n"
+    "- Always validate before writing. Generated snippets should pass their own pack's validator.\n"
+    "- When runtime plugin config paths are provided, they override the bundled defaults "
+    "so that validation and generation match the user's actual vault settings.\n"
+    "- Only use plugin-specific syntax (Tasks, Templater, etc.) when the corresponding pack is enabled.\n"
+    "- Bundled packs: core, tasks, templater, quickadd, meta_bind, js_engine, docxer, linter.\n"
 )
 
 mcp = FastMCP(
@@ -74,26 +85,32 @@ def profile_resource(name: str) -> str:
 
 @mcp.tool()
 def list_packs(enabled_only: bool = False) -> list[dict]:
-    """List available spec packs and their primary syntax domains."""
+    """List all registered Obsidian spec packs. Returns a JSON array of objects with fields: name, title, description, syntax_kinds, enabled_by_default. Set enabled_only=true to filter to packs that are active by default."""
     return [pack.model_dump(mode="json") for pack in available_packs(enabled_only=enabled_only)]
 
 
 @mcp.tool()
 def get_pack_info(name: str) -> dict:
-    """Return metadata and source links for a spec pack."""
-    return get_pack(name).model_dump(mode="json")
+    """Return metadata and source links for a spec pack. Accepts pack name or alias (e.g. 'doxcer' resolves to 'docxer'). Returns a JSON object with name, title, description, syntax_kinds, docs (array of {label, url}), examples, validator_notes, and enabled_by_default."""
+    try:
+        return get_pack(name).model_dump(mode="json")
+    except (KeyError, ValueError) as exc:
+        return {"error": True, "message": f"Unknown pack: {name}", "suggestion": "Call list_packs to see available packs."}
 
 
 @mcp.tool()
 def search_spec(query: str, packs: list[str] | None = None) -> list[dict]:
-    """Search bundled spec docs by keyword across one or more packs."""
+    """Search bundled spec docs by keyword across one or more packs. Returns a JSON array of {pack, line, text, score} sorted by relevance. Omit packs to search all. Use this before generating markdown to find the correct syntax."""
     return [hit.model_dump(mode="json") for hit in search_docs(query=query, packs=packs)]
 
 
 @mcp.tool()
 def get_doc(name: str) -> str:
-    """Return the bundled markdown guidance for a specific pack."""
-    return load_doc_text(name)
+    """Return the bundled markdown guidance for a specific pack. Accepts pack name or alias. Returns the full spec document as markdown text including rules, examples, and edge cases. Use this to understand a pack's syntax before generating or validating."""
+    try:
+        return load_doc_text(name)
+    except (KeyError, ValueError) as exc:
+        return f"Error: Unknown pack '{name}'. Call list_packs to see available packs."
 
 
 @mcp.tool()
@@ -108,7 +125,7 @@ def get_effective_profile(
     js_engine_path: str | None = None,
     docxer_path: str | None = None,
 ) -> dict:
-    """Load the bundled profile plus any runtime plugin config files or overlays."""
+    """Load the bundled profile plus any runtime plugin config files or overlays. Returns {profile: {...}, sources: [{kind, path, loaded, error}]}. Pass file paths to plugin JSON configs (e.g. tasks_path pointing to the Tasks plugin data.json) to tailor validation and generation to the user's actual vault settings."""
     report = load_effective_profile(
         profile_name=profile_name,
         config_paths=_runtime_paths(
@@ -139,7 +156,7 @@ def validate_obsidian_markdown(
     js_engine_path: str | None = None,
     docxer_path: str | None = None,
 ) -> dict:
-    """Validate markdown against one or more Obsidian spec packs, tailored to runtime plugin config files when provided."""
+    """Validate markdown against one or more Obsidian spec packs. Returns {valid: bool, packs_checked: [...], issues: [{pack, severity, message, line, suggestion}], summary: str}. Omit packs to use the profile's default_packs. Always call this before writing markdown to a vault. Does NOT write files — use mcp-obsidian for that."""
     runtime = load_effective_profile(
         profile_name=profile_name,
         config_paths=_runtime_paths(
@@ -174,7 +191,7 @@ def generate_obsidian_snippet(
     js_engine_path: str | None = None,
     docxer_path: str | None = None,
 ) -> dict:
-    """Generate a starter snippet for a specific pack and intent, using runtime plugin config when available."""
+    """Generate a starter markdown snippet for a specific pack and intent. Returns {pack, intent, markdown, notes, profile_hints}. Common intents: core/note, tasks/task-line, tasks/query, templater/project-template, quickadd/capture, meta_bind/form, js_engine/script, docxer/convert, linter/hygiene. Validate the returned markdown before writing it to a vault."""
     details = json.loads(details_json) if details_json else {}
     runtime = load_effective_profile(
         profile_name=profile_name,
@@ -195,7 +212,7 @@ def generate_obsidian_snippet(
 
 @mcp.tool()
 def normalized_pack_name(name: str) -> dict:
-    """Normalize aliases such as doxcer -> docxer or metabind -> meta_bind."""
+    """Normalize aliases such as doxcer -> docxer or metabind -> meta_bind. Returns {input, normalized}. Use this when unsure of the canonical pack name."""
     normalized = normalize_pack_name(name)
     return {"input": name, "normalized": normalized}
 

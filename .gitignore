@@ -41,5 +41,8 @@ obsidian_spec_mcp_built.zip
 *.swo
 *~
 
+# Test vault configs (local testing)
+test_vault_configs/
+
 # uv
 uv.lock
