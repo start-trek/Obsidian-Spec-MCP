@@ -25,6 +25,8 @@ obsidian_spec_mcp/docs/templater.md
 obsidian_spec_mcp/profiles/__init__.py
 obsidian_spec_mcp/profiles/default_profile.json
 tests/test_config.py
+tests/test_gauntlet.py
+tests/test_integration.py
 tests/test_registry.py
 tests/test_renderers.py
 tests/test_server.py

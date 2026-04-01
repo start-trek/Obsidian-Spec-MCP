@@ -40,7 +40,7 @@ from obsidian_spec_mcp.validators import validate_markdown
 # Paths to test vault configs
 # ---------------------------------------------------------------------------
 CONFIGS_DIR = Path(__file__).resolve().parent.parent / "test_vault_configs"
-VAULT_DIR = Path.home() / "Obsidian" / "SpecTestVault"
+VAULT_DIR = Path(__file__).resolve().parent / "fixtures" / "vault"
 
 ALL_PACKS = ["core", "tasks", "templater", "quickadd", "meta_bind", "js_engine", "docxer", "linter"]
 

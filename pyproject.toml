@@ -26,6 +26,11 @@ include = ["obsidian_spec_mcp*"]
 [tool.setuptools.package-data]
 obsidian_spec_mcp = ["docs/*.md", "profiles/*.json"]
 
+[tool.pytest.ini_options]
+markers = [
+    "integration: end-to-end tests requiring Obsidian REST API (set OBSIDIAN_API_KEY)",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",

@@ -295,17 +295,56 @@ obsidian_spec_mcp/
 │   └── linter.md
 └── profiles/
     └── default_profile.json
+
+tests/
+├── fixtures/
+│   └── vault/         # Seed notes for gauntlet tests (git-tracked)
+│       ├── core/
+│       ├── tasks/
+│       ├── templater/
+│       ├── quickadd/
+│       ├── meta_bind/
+│       ├── js_engine/
+│       ├── docxer/
+│       ├── linter/
+│       └── cross_pack/
+├── test_gauntlet.py   # Per-pack gauntlet tests using seed notes
+├── test_integration.py # End-to-end tests via Obsidian REST API
+├── test_validators.py
+├── test_renderers.py
+├── test_config.py
+├── test_registry.py
+└── test_server.py
 ```
 
 ### Running Tests
 
 ```bash
-# All tests (unit + gauntlet)
-uv run pytest tests/ -v
+# All tests (unit + gauntlet, excludes integration)
+uv run pytest tests/ -v --ignore=tests/test_integration.py
 
 # Just the gauntlet (comprehensive per-pack validation)
 uv run pytest tests/test_gauntlet.py -v
+
+# Integration tests (requires Obsidian + Local REST API plugin)
+OBSIDIAN_API_KEY=your_key uv run pytest tests/test_integration.py -v -m integration
 ```
+
+### Integration Tests with mcp-obsidian
+
+The integration tests in `tests/test_integration.py` exercise the full recommended workflow:
+
+1. **Generate** a snippet via `obsidian-spec-mcp`
+2. **Validate** it against the relevant pack(s)
+3. **Write** it to your vault via the Obsidian Local REST API
+4. **Read** it back
+5. **Verify** the content survived the round-trip
+
+**Prerequisites:**
+- Obsidian running with the [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) community plugin enabled
+- `OBSIDIAN_API_KEY` environment variable set (find the key in the plugin settings)
+
+Tests write to a `_spec_mcp_integration_test/` folder inside your vault and clean up after themselves.
 
 ### Adding a New Pack
 
@@ -314,7 +353,7 @@ uv run pytest tests/test_gauntlet.py -v
 3. **Validate** — Add a `_validate_your_pack()` function in `validators.py`.
 4. **Render** — Add a `_your_pack()` function in `renderers.py`.
 5. **Wire up** — Add the pack to the dispatcher dicts in `validators.py` and `renderers.py`.
-6. **Test** — Add test cases in `tests/test_gauntlet.py` and seed notes in the test vault.
+6. **Test** — Add test cases in `tests/test_gauntlet.py` and seed notes in `tests/fixtures/vault/your_pack/`.
 7. **Alias** — Add common aliases in `registry.py`'s `_ALIASES` dict.
 
 ### Extending Validators
@@ -337,6 +376,7 @@ Ideas for contributors and power users:
 - **Custom prompts** — Add prompt variants for your most common note patterns.
 - **Orchestration** — Build a meta-tool that validates here and writes through `mcp-obsidian` in one flow.
 - **New packs** — Add support for Dataview, Canvas, Database Folder, or any other Obsidian plugin.
+- **Integration tests** — Expand `tests/test_integration.py` with more round-trip scenarios.
 
 ## License
 
