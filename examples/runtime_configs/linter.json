@@ -1,0 +1,7 @@
+{
+  "rules": {
+    "single_h1": true,
+    "collapse_extra_blank_lines": true,
+    "prefer_yaml_frontmatter": true
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "variables": [
+    {"name": "project"},
+    {"name": "summary"},
+    {"name": "owner"}
+  ],
+  "choices": [
+    {"name": "Capture Task"},
+    {"name": "New Project Note"}
+  ]
+}

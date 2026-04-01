@@ -1,0 +1,32 @@
+[project]
+name = "obsidian-spec-mcp"
+version = "0.1.0"
+description = "Spec-centric MCP server for Obsidian syntax, semantics, and community-plugin patterns"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "mcp>=1.26.0",
+  "pydantic>=2.7.0",
+  "pyyaml>=6.0.2"
+]
+
+[project.scripts]
+obsidian-spec-mcp = "obsidian_spec_mcp.server:main"
+
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["obsidian_spec_mcp*"]
+
+[tool.setuptools.package-data]
+obsidian_spec_mcp = ["docs/*.md", "profiles/*.json"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]

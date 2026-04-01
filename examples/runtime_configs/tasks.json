@@ -1,0 +1,10 @@
+{
+  "globalFilter": "#task",
+  "appendGlobalFilterToQueries": true,
+  "customStatuses": [
+    {"symbol": " ", "name": "Todo", "type": "TODO"},
+    {"symbol": "/", "name": "In Progress", "type": "IN_PROGRESS"},
+    {"symbol": "x", "name": "Done", "type": "DONE"}
+  ],
+  "datePriority": ["scheduled", "due", "start"]
+}

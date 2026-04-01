@@ -1,0 +1,8 @@
+{
+  "name": "default",
+  "use_wikilinks": true,
+  "prefer_properties": true,
+  "default_packs": ["core", "tasks", "templater", "linter"],
+  "tasks_append_global_filter_to_queries": true,
+  "meta_bind_field_types": ["toggle", "text", "select"]
+}

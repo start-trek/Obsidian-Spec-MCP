@@ -1,0 +1,10 @@
+{
+  "userScripts": [
+    {"name": "daily_header"},
+    {"name": "project_footer"}
+  ],
+  "folderTemplates": {
+    "Projects": "Templates/Project.md",
+    "Meetings": "Templates/Meeting.md"
+  }
+}

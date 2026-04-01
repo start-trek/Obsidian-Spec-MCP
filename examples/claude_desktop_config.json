@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "obsidian-spec": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/ABSOLUTE/PATH/TO/obsidian_spec_mcp",
+        "obsidian-spec-mcp"
+      ]
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "defaults": {
+    "source_docx": "incoming/spec.docx",
+    "output_note": "converted/spec.md"
+  }
+}
