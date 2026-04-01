@@ -1,0 +1,45 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Testing
+.pytest_cache/
+**/.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Package metadata
+*.egg-info/
+**/*.egg-info/
+*.egg
+*.whl
+
+# Build artifacts
+build/
+dist/
+obsidian_spec_mcp_built.zip
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# uv
+uv.lock
