@@ -19,9 +19,10 @@ from obsidian_spec_mcp.server import (
 
 class TestListPacks:
     def test_returns_list(self):
+        from obsidian_spec_mcp.server import list_packs
         result = list_packs()
         assert isinstance(result, list)
-        assert len(result) == 8
+        assert len(result) == 10
 
     def test_enabled_only(self):
         result = list_packs(enabled_only=True)

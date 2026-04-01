@@ -12,6 +12,10 @@ TEMPLATER_TAG_RE = re.compile(r"<%[*_-]?(.*?)%>", re.DOTALL)
 QUICKADD_TOKEN_RE = re.compile(r"{{[^{}]+}}")
 META_BIND_INLINE_RE = re.compile(r"\b(?:INPUT|VIEW|BUTTON)\[[^\]]+\]")
 JS_ENGINE_BLOCK_RE = re.compile(r"```js-engine\n.*?\n```", re.DOTALL)
+DATAVIEW_BLOCK_RE = re.compile(r"```dataview\n.*?```", re.DOTALL)
+DATAVIEWJS_BLOCK_RE = re.compile(r"```dataviewjs\n.*?```", re.DOTALL)
+DATACORE_BLOCK_RE = re.compile(r"```datacore\n.*?```", re.DOTALL)
+INLINE_DATAVIEW_RE = re.compile(r"`=[^`]+`")
 CALL_OUT_RE = re.compile(r"^> \[![^\]]+\]", re.MULTILINE)
 WIKILINK_RE = re.compile(r"(?<!!)\[\[[^\]]+\]\]")
 EMBED_RE = re.compile(r"!\[\[[^\]]+\]\]")
@@ -44,6 +48,10 @@ def validate_markdown(markdown: str, packs: Iterable[str], profile: Profile | No
             issues.extend(_validate_docxer(markdown, profile))
         elif pack == "linter":
             issues.extend(_validate_linter(markdown, profile))
+        elif pack == "dataview":
+            issues.extend(_validate_dataview(markdown, profile))
+        elif pack == "datacore":
+            issues.extend(_validate_datacore(markdown, profile))
 
     valid = not any(issue.severity == "error" for issue in issues)
     summary = "Validation passed." if valid else "Validation found one or more errors."
@@ -327,4 +335,83 @@ def _validate_linter(markdown: str, profile: Profile) -> list[ValidationIssue]:
                 message="Linter profile prefers YAML frontmatter, but metadata-like keys were found outside it.",
             )
         )
+    return issues
+
+
+def _validate_dataview(markdown: str, profile: Profile) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    # Check for unclosed dataview blocks (not dataviewjs)
+    if "```dataview\n" in markdown and not DATAVIEW_BLOCK_RE.search(markdown):
+        issues.append(
+            ValidationIssue(
+                pack="dataview",
+                severity="error",
+                message="Dataview block is not properly closed.",
+                suggestion="Use fenced blocks with language dataview.",
+            )
+        )
+    if "```dataviewjs\n" in markdown and not DATAVIEWJS_BLOCK_RE.search(markdown):
+        issues.append(
+            ValidationIssue(
+                pack="dataview",
+                severity="error",
+                message="DataviewJS block is not properly closed.",
+                suggestion="Use fenced blocks with language dataviewjs.",
+            )
+        )
+    if "`= " in markdown or "`=" in markdown:
+        if not INLINE_DATAVIEW_RE.search(markdown):
+            issues.append(
+                ValidationIssue(
+                    pack="dataview",
+                    severity="warning",
+                    message="Possible inline Dataview expression found but syntax appears malformed.",
+                    suggestion="Use backtick-equals syntax like `= this.title`.",
+                )
+            )
+    for match in DATAVIEW_BLOCK_RE.finditer(markdown):
+        body = match.group(0)
+        if "FROM" not in body.upper() and "TABLE" in body.upper():
+            issues.append(
+                ValidationIssue(
+                    pack="dataview",
+                    severity="info",
+                    message="Dataview query without FROM clause will scan all files (may be slow).",
+                    suggestion="Add a FROM clause to limit the query scope.",
+                )
+            )
+    return issues
+
+
+def _validate_datacore(markdown: str, profile: Profile) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if "```datacore" in markdown and not DATACORE_BLOCK_RE.search(markdown):
+        issues.append(
+            ValidationIssue(
+                pack="datacore",
+                severity="error",
+                message="Datacore block is not properly closed.",
+                suggestion="Use fenced blocks with language datacore.",
+            )
+        )
+    for match in DATACORE_BLOCK_RE.finditer(markdown):
+        body = match.group(0)
+        if "view:" not in body.lower():
+            issues.append(
+                ValidationIssue(
+                    pack="datacore",
+                    severity="warning",
+                    message="Datacore block missing 'view' declaration.",
+                    suggestion="Specify view type like 'view: table' or 'view: list'.",
+                )
+            )
+        if "from:" not in body.lower():
+            issues.append(
+                ValidationIssue(
+                    pack="datacore",
+                    severity="info",
+                    message="Datacore block without 'from' clause may scan all files.",
+                    suggestion="Add 'from: #tag' or 'from: folder' to limit scope.",
+                )
+            )
     return issues

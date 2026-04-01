@@ -20,6 +20,8 @@ ENV_MAP = {
     "meta_bind_path": "OBS_SPEC_META_BIND_CONFIG_PATH",
     "js_engine_path": "OBS_SPEC_JS_ENGINE_CONFIG_PATH",
     "docxer_path": "OBS_SPEC_DOCXER_CONFIG_PATH",
+    "dataview_path": "OBS_SPEC_DATAVIEW_CONFIG_PATH",
+    "datacore_path": "OBS_SPEC_DATACORE_CONFIG_PATH",
 }
 
 
@@ -62,6 +64,14 @@ def load_effective_profile(profile_name: str = "default", config_paths: PluginCo
     docxer_cfg = _load_mapping(paths.docxer_path, "docxer-config", sources)
     if docxer_cfg:
         _merge_profile(profile, _extract_docxer(docxer_cfg), source_label=str(paths.docxer_path))
+
+    dataview_cfg = _load_mapping(paths.dataview_path, "dataview-config", sources)
+    if dataview_cfg:
+        _merge_profile(profile, _extract_dataview(dataview_cfg), source_label=str(paths.dataview_path))
+
+    datacore_cfg = _load_mapping(paths.datacore_path, "datacore-config", sources)
+    if datacore_cfg:
+        _merge_profile(profile, _extract_datacore(datacore_cfg), source_label=str(paths.datacore_path))
 
     profile.config_sources = [src.path for src in sources if src.loaded]
     return EffectiveProfileReport(profile=profile, sources=sources)
@@ -196,3 +206,22 @@ def _extract_js_engine(data: dict[str, Any]) -> dict[str, Any]:
 def _extract_docxer(data: dict[str, Any]) -> dict[str, Any]:
     defaults = data.get("defaults") if isinstance(data.get("defaults"), dict) else data
     return {"docxer_defaults": defaults}
+
+
+def _extract_dataview(data: dict[str, Any]) -> dict[str, Any]:
+    overlay: dict[str, Any] = {}
+    views = data.get("views") or data.get("customViews") or []
+    if views:
+        overlay["dataview_views"] = [str(x) for x in views]
+    prefix = data.get("customPrefix") or data.get("prefix")
+    if prefix:
+        overlay["dataview_custom_prefix"] = str(prefix)
+    return overlay
+
+
+def _extract_datacore(data: dict[str, Any]) -> dict[str, Any]:
+    overlay: dict[str, Any] = {}
+    components = data.get("components") or data.get("customComponents") or []
+    if components:
+        overlay["datacore_components"] = [str(x) for x in components]
+    return overlay

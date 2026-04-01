@@ -146,6 +146,43 @@ PACKS: dict[str, PackInfo] = {
             "Linter is configuration-driven, so local vault policy matters more than generic markdown style.",
         ],
     ),
+    "dataview": PackInfo(
+        name="dataview",
+        title="Dataview",
+        description="Dataview query language for creating dynamic views and tables from vault metadata.",
+        syntax_kinds=["dataview-query", "dataviewjs", "inline-dataview"],
+        docs=[
+            DocSource(label="Dataview Docs", url="https://blacksmithgu.github.io/obsidian-dataview/"),
+            DocSource(label="Dataview GitHub", url="https://github.com/blacksmithgu/obsidian-dataview"),
+        ],
+        examples=[
+            "```dataview\nLIST FROM #project\nWHERE completed = false\n```",
+            "`= this.title`",
+            "```dataviewjs\ndv.table(['File', 'Modified'], dv.pages().map(p => [p.file.link, p.file.mtime]))\n```",
+        ],
+        validator_notes=[
+            "Dataview queries belong in fenced code blocks with language dataview.",
+            "DataviewJS uses dataviewjs language for JavaScript execution.",
+            "Inline queries use backtick-equals syntax.",
+        ],
+        enabled_by_default=True,
+    ),
+    "datacore": PackInfo(
+        name="datacore",
+        title="Datacore",
+        description="Datacore reactive components for live-updating data views in Obsidian.",
+        syntax_kinds=["datacore-component", "datacore-block"],
+        docs=[
+            DocSource(label="Datacore GitHub", url="https://github.com/blacksmithgu/obsidian-datacore"),
+        ],
+        examples=[
+            "```datacore\nview: table\nfrom: #project\n```",
+        ],
+        validator_notes=[
+            "Datacore is an experimental successor to Dataview.",
+        ],
+        enabled_by_default=False,
+    ),
 }
 
 
@@ -179,6 +216,10 @@ def normalize_pack_name(name: str) -> str:
         "doxcer": "docxer",
         "core_obsidian": "core",
         "obsidian": "core",
+        "dv": "dataview",
+        "dvjs": "dataview",
+        "data_view": "dataview",
+        "data_core": "datacore",
     }
     return aliases.get(token, token)
 

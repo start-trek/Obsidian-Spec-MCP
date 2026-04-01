@@ -32,6 +32,10 @@ def generate_snippet(
         return _docxer(intent=intent, title=title, details=details, profile=profile)
     if normalized == "linter":
         return _linter(intent=intent, title=title, details=details, profile=profile)
+    if normalized == "dataview":
+        return _dataview(intent=intent, title=title, details=details, profile=profile)
+    if normalized == "datacore":
+        return _datacore(intent=intent, title=title, details=details, profile=profile)
     return _core(intent=intent, title=title, details=details, profile=profile)
 
 
@@ -193,3 +197,89 @@ def _linter(intent: str, title: str, details: dict, profile: Profile) -> Generat
         """
     ).strip()
     return GeneratedSnippet(pack="linter", intent=intent, markdown=markdown)
+
+
+def _dataview(intent: str, title: str, details: dict, profile: Profile) -> GeneratedSnippet:
+    if intent == "inline":
+        field = details.get("field", "this.title")
+        markdown = f"`= {field}`"
+        return GeneratedSnippet(
+            pack="dataview",
+            intent=intent,
+            markdown=markdown,
+            notes=["Inline Dataview queries update in real-time when viewing the note."],
+        )
+    if intent == "dataviewjs":
+        custom_views = profile.dataview_views if profile.dataview_views else []
+        view_note = f"\n// Available views: {', '.join(custom_views)}" if custom_views else ""
+        markdown = dedent(
+            f"""\
+            ```dataviewjs
+            // Query all pages matching a tag{view_note}
+            dv.table(
+              ["File", "Modified"],
+              dv.pages("#tag").map(p => [p.file.link, p.file.mtime])
+            )
+            ```
+            """
+        ).strip()
+        return GeneratedSnippet(
+            pack="dataview",
+            intent=intent,
+            markdown=markdown,
+            notes=["DataviewJS provides full JavaScript access to the Dataview API."],
+            profile_hints=custom_views,
+        )
+    # Default: dataview query block
+    tag = details.get("tag", "project")
+    sort_by = details.get("sort_by", "file.name")
+    custom_views = profile.dataview_views if profile.dataview_views else []
+    view_note = f"\n// Available saved views: {', '.join(custom_views)}" if custom_views else ""
+    markdown = dedent(
+        f"""\
+        ```dataview{view_note}
+        LIST FROM #{tag}
+        WHERE completed = false
+        SORT {sort_by} ASC
+        ```
+        """
+    ).strip()
+    return GeneratedSnippet(
+        pack="dataview",
+        intent=intent,
+        markdown=markdown,
+        notes=["Dataview queries update automatically when underlying data changes."],
+        profile_hints=custom_views,
+    )
+
+
+def _datacore(intent: str, title: str, details: dict, profile: Profile) -> GeneratedSnippet:
+    view_type = details.get("view", "table")
+    from_source = details.get("from", "#project")
+    custom_components = profile.datacore_components if profile.datacore_components else []
+    component_note = f"\n# Custom components available: {', '.join(custom_components)}" if custom_components else ""
+    markdown = dedent(
+        f"""\
+        ```datacore
+        view: {view_type}
+        from: {from_source}
+        select:
+          - file.link
+          - status
+          - due_date
+        where: status != "completed"
+        sort: due_date ASC
+        ```{component_note}
+        """
+    ).strip()
+    notes = [
+        "Datacore is experimental and syntax may change.",
+        "Views are reactive and update automatically.",
+    ]
+    return GeneratedSnippet(
+        pack="datacore",
+        intent=intent,
+        markdown=markdown,
+        notes=notes,
+        profile_hints=custom_components,
+    )

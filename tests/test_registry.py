@@ -45,13 +45,13 @@ class TestNormalizePackName:
 
 
 class TestAvailablePacks:
-    def test_returns_all_eight(self):
+    def test_returns_all_ten(self):
         packs = available_packs()
-        assert len(packs) == 8
+        assert len(packs) == 10
 
     def test_pack_names(self):
         names = {p.name for p in available_packs()}
-        assert names == {"core", "tasks", "templater", "quickadd", "meta_bind", "js_engine", "docxer", "linter"}
+        assert names == {"core", "tasks", "templater", "quickadd", "meta_bind", "js_engine", "docxer", "linter", "dataview", "datacore"}
 
     def test_enabled_only(self):
         enabled = available_packs(enabled_only=True)
@@ -97,7 +97,7 @@ class TestLoadDocText:
         assert len(text) > 0
 
     def test_all_packs_have_docs(self):
-        for name in ["core", "tasks", "templater", "quickadd", "meta_bind", "js_engine", "docxer", "linter"]:
+        for name in ["core", "tasks", "templater", "quickadd", "meta_bind", "js_engine", "docxer", "linter", "dataview", "datacore"]:
             text = load_doc_text(name)
             assert len(text) > 0, f"Doc for {name} should not be empty"
 
@@ -114,7 +114,7 @@ class TestSearchDocs:
 
     def test_empty_query(self):
         hits = search_docs("")
-        assert len(hits) == 8
+        assert len(hits) == 10
 
     def test_filter_by_pack(self):
         hits = search_docs("syntax", packs=["tasks"])

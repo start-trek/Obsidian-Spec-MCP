@@ -42,7 +42,7 @@ from obsidian_spec_mcp.validators import validate_markdown
 CONFIGS_DIR = Path(__file__).resolve().parent.parent / "test_vault_configs"
 VAULT_DIR = Path(__file__).resolve().parent / "fixtures" / "vault"
 
-ALL_PACKS = ["core", "tasks", "templater", "quickadd", "meta_bind", "js_engine", "docxer", "linter"]
+ALL_PACKS = ["core", "tasks", "templater", "quickadd", "meta_bind", "js_engine", "docxer", "linter", "dataview", "datacore"]
 
 
 def _config_paths(**overrides) -> PluginConfigPaths:
@@ -56,6 +56,8 @@ def _config_paths(**overrides) -> PluginConfigPaths:
         "meta_bind_path": str(CONFIGS_DIR / "meta_bind.json"),
         "js_engine_path": str(CONFIGS_DIR / "js_engine.json"),
         "docxer_path": str(CONFIGS_DIR / "docxer.json"),
+        "dataview_path": str(CONFIGS_DIR / "dataview.json"),
+        "datacore_path": str(CONFIGS_DIR / "datacore.json"),
     }
     base.update(overrides)
     return PluginConfigPaths(**base)
@@ -109,6 +111,8 @@ class TestSearchSpec:
         "js_engine": "engine",
         "docxer": "docx",
         "linter": "heading",
+        "dataview": "query",
+        "datacore": "view",
     }
 
     @pytest.mark.parametrize("pack_name", ALL_PACKS)
@@ -353,6 +357,117 @@ class TestLinterGauntlet:
 
 
 # ===================================================================
+# Dataview pack validation
+# ===================================================================
+
+class TestDataviewGauntlet:
+    def test_valid_query(self):
+        md = dedent(
+            """\
+            ```dataview
+            LIST FROM #project
+            WHERE completed = false
+            SORT file.name ASC
+            ```
+            """
+        ).strip()
+        report = validate_markdown(md, ["dataview"], _effective_profile())
+        errors = [i for i in report.issues if i.severity == "error"]
+        assert len(errors) == 0, f"Expected no errors, got: {[e.message for e in errors]}"
+
+    def test_valid_dataviewjs(self):
+        md = dedent(
+            """\
+            ```dataviewjs
+            dv.table(
+              ["File", "Modified"],
+              dv.pages("#tag").map(p => [p.file.link, p.file.mtime])
+            )
+            ```
+            """
+        ).strip()
+        report = validate_markdown(md, ["dataview"], _effective_profile())
+        errors = [i for i in report.issues if i.severity == "error"]
+        assert len(errors) == 0, f"Expected no errors, got: {[e.message for e in errors]}"
+
+    def test_unclosed_dataview_block(self):
+        md = "```dataview\nLIST FROM #project\nWHERE completed = false"
+        report = validate_markdown(md, ["dataview"], _effective_profile())
+        errors = [i for i in report.issues if i.severity == "error"]
+        assert any("closed" in e.message.lower() for e in errors), "Expected unclosed block error"
+
+    def test_unclosed_dataviewjs_block(self):
+        md = "```dataviewjs\ndv.pages('#tag')"
+        report = validate_markdown(md, ["dataview"], _effective_profile())
+        errors = [i for i in report.issues if i.severity == "error"]
+        assert any("closed" in e.message.lower() for e in errors), "Expected unclosed block error"
+
+    def test_generate_query_then_validate(self):
+        profile = _effective_profile()
+        snip = generate_snippet("dataview", "query", title="Gauntlet Query", profile=profile)
+        report = validate_markdown(snip.markdown, ["dataview"], profile)
+        errors = [i for i in report.issues if i.severity == "error"]
+        assert len(errors) == 0, f"Generated Dataview query failed validation: {[e.message for e in errors]}"
+
+    def test_generate_inline_then_validate(self):
+        profile = _effective_profile()
+        snip = generate_snippet("dataview", "inline", title="Gauntlet Inline", profile=profile)
+        report = validate_markdown(snip.markdown, ["dataview"], profile)
+        errors = [i for i in report.issues if i.severity == "error"]
+        assert len(errors) == 0, f"Generated Dataview inline failed validation: {[e.message for e in errors]}"
+
+
+# ===================================================================
+# Datacore pack validation
+# ===================================================================
+
+class TestDatacoreGauntlet:
+    def test_valid_block(self):
+        md = dedent(
+            """\
+            ```datacore
+            view: table
+            from: #project
+            select:
+              - file.link
+              - status
+            where: status != "completed"
+            ```
+            """
+        ).strip()
+        report = validate_markdown(md, ["datacore"], _effective_profile())
+        errors = [i for i in report.issues if i.severity == "error"]
+        assert len(errors) == 0, f"Expected no errors, got: {[e.message for e in errors]}"
+
+    def test_unclosed_datacore_block(self):
+        md = "```datacore\nview: table\nfrom: #project"
+        report = validate_markdown(md, ["datacore"], _effective_profile())
+        errors = [i for i in report.issues if i.severity == "error"]
+        assert any("closed" in e.message.lower() for e in errors), "Expected unclosed block error"
+
+    def test_missing_view_warning(self):
+        md = dedent(
+            """\
+            ```datacore
+            from: #project
+            select:
+              - file.link
+            ```
+            """
+        ).strip()
+        report = validate_markdown(md, ["datacore"], _effective_profile())
+        warnings = [i for i in report.issues if i.severity == "warning"]
+        assert any("view" in w.message.lower() for w in warnings), "Expected missing view warning"
+
+    def test_generate_then_validate(self):
+        profile = _effective_profile()
+        snip = generate_snippet("datacore", "view", title="Gauntlet View", profile=profile)
+        report = validate_markdown(snip.markdown, ["datacore"], profile)
+        errors = [i for i in report.issues if i.severity == "error"]
+        assert len(errors) == 0, f"Generated Datacore failed validation: {[e.message for e in errors]}"
+
+
+# ===================================================================
 # Cross-pack validation
 # ===================================================================
 
@@ -463,6 +578,10 @@ class TestAliasGauntlet:
         "obsidian": "core",
         "core_obsidian": "core",
         "meta_bind_plugin": "meta_bind",
+        "dv": "dataview",
+        "dvjs": "dataview",
+        "data_view": "dataview",
+        "data_core": "datacore",
     }
 
     @pytest.mark.parametrize("alias,expected", list(ALIASES.items()))
@@ -496,6 +615,8 @@ class TestGenerateThenValidateAll:
         "js_engine": "script",
         "docxer": "convert",
         "linter": "hygiene",
+        "dataview": "query",
+        "datacore": "view",
     }
 
     @pytest.mark.parametrize("pack_name", ALL_PACKS)
@@ -521,7 +642,7 @@ class TestServerToolFunctions:
     def test_list_packs(self):
         from obsidian_spec_mcp.server import list_packs
         result = list_packs()
-        assert len(result) == 8
+        assert len(result) == 10
         names = {p["name"] for p in result}
         assert names == set(ALL_PACKS)
 

@@ -29,6 +29,8 @@ A spec-centric [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) 
 | **js_engine** | js-engine-block | JS Engine: executable JavaScript code blocks |
 | **docxer** | docxer-workflow | Docxer: `.docx` to markdown conversion workflow |
 | **linter** | linter-profile, lint-style | Linter: heading, spacing, and frontmatter hygiene rules |
+| **dataview** | dataview-query, dataviewjs, inline-dataview | Dataview: dynamic queries and live data views |
+| **datacore** | datacore-component, datacore-block | Datacore: reactive data components (experimental) |
 
 ---
 
@@ -145,6 +147,10 @@ Add to `claude_desktop_config.json`:
 | js_engine | `script` | Fenced `js-engine` block |
 | docxer | `convert` | `.docx` conversion workflow note |
 | linter | `hygiene` | Clean note skeleton |
+| dataview | `query` | Fenced `dataview` query block |
+| dataview | `inline` | Inline Dataview expression |
+| dataview | `dataviewjs` | Fenced `dataviewjs` JavaScript block |
+| datacore | `view` | Fenced `datacore` reactive component |
 
 ## Resources
 

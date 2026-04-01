@@ -14,6 +14,8 @@ PackName = Literal[
     "js_engine",
     "docxer",
     "linter",
+    "dataview",
+    "datacore",
 ]
 
 
@@ -83,6 +85,9 @@ class Profile(BaseModel):
     meta_bind_field_types: list[str] = Field(default_factory=list)
     js_engine_helpers: list[str] = Field(default_factory=list)
     docxer_defaults: dict[str, Any] = Field(default_factory=dict)
+    dataview_views: list[str] = Field(default_factory=list)
+    dataview_custom_prefix: str | None = None
+    datacore_components: list[str] = Field(default_factory=list)
     config_sources: list[str] = Field(default_factory=list)
 
 
@@ -107,6 +112,8 @@ class PluginConfigPaths(BaseModel):
     meta_bind_path: str | None = None
     js_engine_path: str | None = None
     docxer_path: str | None = None
+    dataview_path: str | None = None
+    datacore_path: str | None = None
 
 
 class RuntimeOptions(BaseModel):
