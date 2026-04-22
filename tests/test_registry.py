@@ -45,13 +45,13 @@ class TestNormalizePackName:
 
 
 class TestAvailablePacks:
-    def test_returns_all_eleven(self):
+    def test_returns_all_twelve(self):
         packs = available_packs()
-        assert len(packs) == 11
+        assert len(packs) == 12
 
     def test_pack_names(self):
         names = {p.name for p in available_packs()}
-        assert names == {"core", "tasks", "templater", "quickadd", "meta_bind", "js_engine", "docxer", "linter", "dataview", "datacore", "mermaid"}
+        assert names == {"core", "tasks", "templater", "quickadd", "meta_bind", "js_engine", "docxer", "linter", "dataview", "datacore", "mermaid", "styling"}
 
     def test_enabled_only(self):
         enabled = available_packs(enabled_only=True)
@@ -114,7 +114,7 @@ class TestSearchDocs:
 
     def test_empty_query(self):
         hits = search_docs("")
-        assert len(hits) == 11
+        assert len(hits) == 12
 
     def test_filter_by_pack(self):
         hits = search_docs("syntax", packs=["tasks"])

@@ -38,6 +38,8 @@ def generate_snippet(
         return _datacore(intent=intent, title=title, details=details, profile=profile)
     if normalized == "mermaid":
         return _mermaid(intent=intent, title=title, details=details, profile=profile)
+    if normalized == "styling":
+        return _styling(intent=intent, title=title, details=details, profile=profile)
     return _core(intent=intent, title=title, details=details, profile=profile)
 
 
@@ -422,6 +424,129 @@ def _mermaid(intent: str, title: str, details: dict, profile: Profile) -> Genera
         pack="mermaid",
         intent=intent,
         markdown=template,
+        notes=notes,
+        profile_hints=hints,
+    )
+
+
+_STYLING_COMMON_NOTES = [
+    "Use `cssclasses` (plural list) in frontmatter; `cssclass` is deprecated.",
+    "CSS snippets live at <vault>/.obsidian/snippets/<name>.css and are toggled under Settings -> Appearance -> CSS snippets.",
+    "Overrides to --file-line-width require Settings -> Editor -> Readable line length to be ENABLED.",
+    "After editing a snippet, toggle it off/on or reload Obsidian for changes to apply.",
+]
+
+
+def _styling_cssclasses_frontmatter(details: dict) -> str:
+    raw = details.get("cssclasses") or details.get("classes") or details.get("class_name") or "wide-page"
+    if isinstance(raw, str):
+        classes = [item.strip() for item in raw.split(",") if item.strip()]
+    elif isinstance(raw, list):
+        classes = [str(item).strip() for item in raw if str(item).strip()]
+    else:
+        classes = ["wide-page"]
+    if not classes:
+        classes = ["wide-page"]
+    lines = ["---", "cssclasses:"]
+    for cls in classes:
+        lines.append(f"  - {cls}")
+    lines.append("---")
+    return "\n".join(lines)
+
+
+def _styling_file_line_width_override(details: dict) -> str:
+    class_name = str(details.get("class_name") or details.get("cssclass") or "wide-page")
+    value = str(details.get("value") or details.get("width") or "100%")
+    return (
+        f"/* Widen notes tagged with `cssclasses: {class_name}`.\n"
+        " * Requires Readable line length to be enabled in Settings. */\n"
+        f".{class_name} {{\n"
+        f"  --file-line-width: {value};\n"
+        f"}}\n"
+        "\n"
+        "/* Minimal theme uses its own line-width variable. */\n"
+        f"body.minimal-theme.minimal-theme .{class_name} {{\n"
+        f"  --line-width: {value};\n"
+        f"}}\n"
+    )
+
+
+def _styling_wide_page_snippet(details: dict) -> str:
+    class_name = str(details.get("class_name") or "wide-page")
+    buffer_px = str(details.get("sidebar_buffer") or "400px")
+    return (
+        f"/* {class_name}.css -- per-note mermaid breakout.\n"
+        f" * Activate with frontmatter `cssclasses: [{class_name}]`.\n"
+        " * Requires Readable line length enabled. */\n"
+        "\n"
+        "/* Reading mode: mermaid containers (wrapper + inner). */\n"
+        f".{class_name} .markdown-preview-view .block-language-mermaid,\n"
+        f".{class_name} .markdown-preview-view .mermaid,\n"
+        f".{class_name} .markdown-preview-section > div:has(> .mermaid),\n"
+        f".{class_name} .markdown-preview-section > div:has(> .block-language-mermaid),\n"
+        "/* Live Preview: mermaid inside CodeMirror 6 embed blocks. */\n"
+        f".{class_name} .cm-preview-code-block.cm-lang-mermaid,\n"
+        f".{class_name} .cm-embed-block .mermaid {{\n"
+        f"  width: calc(100vw - {buffer_px}) !important;\n"
+        f"  max-width: calc(100vw - {buffer_px}) !important;\n"
+        "  position: relative !important;\n"
+        "  left: 50% !important;\n"
+        "  transform: translateX(-50%) !important;\n"
+        "}\n"
+        "\n"
+        "/* Scale the rendered SVG up to fill the widened container. */\n"
+        f".{class_name} .block-language-mermaid svg,\n"
+        f".{class_name} .mermaid svg,\n"
+        f".{class_name} .cm-preview-code-block.cm-lang-mermaid svg {{\n"
+        "  max-width: 100% !important;\n"
+        "  width: 100% !important;\n"
+        "  height: auto !important;\n"
+        "}\n"
+    )
+
+
+def _styling_container_breakout(details: dict) -> str:
+    class_name = str(details.get("class_name") or "wide-page")
+    target = str(details.get("target_selector") or ".block-language-mermaid")
+    buffer_px = str(details.get("sidebar_buffer") or "400px")
+    return (
+        f"/* Break `{target}` out of the readable-line-width container\n"
+        f" * when its note has `cssclasses: [{class_name}]`. Generic pattern\n"
+        " * applicable to mermaid, callouts, tables, code blocks, etc. */\n"
+        f".{class_name} {target} {{\n"
+        f"  width: calc(100vw - {buffer_px}) !important;\n"
+        f"  max-width: calc(100vw - {buffer_px}) !important;\n"
+        "  position: relative !important;\n"
+        "  left: 50% !important;\n"
+        "  transform: translateX(-50%) !important;\n"
+        "}\n"
+    )
+
+
+def _styling(intent: str, title: str, details: dict, profile: Profile) -> GeneratedSnippet:
+    key = intent.split("/")[-1] if "/" in intent else intent
+    notes = list(_STYLING_COMMON_NOTES)
+    hints: list[str] = []
+
+    if key in {"cssclasses-frontmatter", "cssclasses", "frontmatter"}:
+        markdown = _styling_cssclasses_frontmatter(details)
+    elif key in {"file-line-width-override", "file-line-width", "line-width"}:
+        markdown = _styling_file_line_width_override(details)
+        notes.append("Minimal theme uses --line-width; this snippet sets both.")
+    elif key in {"wide-page-snippet", "wide-page", "mermaid-breakout"}:
+        markdown = _styling_wide_page_snippet(details)
+        notes.append("Tune the sidebar buffer (default 400px) to taste: larger = more margin.")
+    elif key in {"container-breakout", "breakout"}:
+        markdown = _styling_container_breakout(details)
+        notes.append("Works for any block-level wrapper, not just mermaid.")
+    else:
+        markdown = _styling_wide_page_snippet(details)
+        notes.append(f"Unknown styling intent '{intent}'; defaulting to wide-page-snippet.")
+
+    return GeneratedSnippet(
+        pack="styling",
+        intent=intent,
+        markdown=markdown,
         notes=notes,
         profile_hints=hints,
     )

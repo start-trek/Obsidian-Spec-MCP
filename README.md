@@ -32,6 +32,7 @@ A spec-centric [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) 
 | **dataview** | dataview-query, dataviewjs, inline-dataview | Dataview: dynamic queries and live data views |
 | **datacore** | datacore-component, datacore-block | Datacore: reactive data components (experimental) |
 | **mermaid** | mermaid-block, mermaid-flowchart, mermaid-sequence, mermaid-class, mermaid-state, mermaid-er, mermaid-gantt, mermaid-pie, mermaid-mindmap, mermaid-timeline, mermaid-quadrant, … | Mermaid diagrams aligned with Obsidian's bundled Mermaid v10.x; catches unquoted special chars in flowchart labels |
+| **styling** | cssclasses-frontmatter, css-snippet, css-variable-override, readable-line-width-override, container-breakout | Per-note styling via `cssclasses` property and `.obsidian/snippets/*.css`; covers the Obsidian CSS variable taxonomy and the Reading vs Live-Preview DOM surfaces |
 
 ---
 
@@ -152,6 +153,13 @@ Add to `claude_desktop_config.json`:
 | dataview | `inline` | Inline Dataview expression |
 | dataview | `dataviewjs` | Fenced `dataviewjs` JavaScript block |
 | datacore | `view` | Fenced `datacore` reactive component |
+| mermaid | `flowchart` | Fenced `mermaid` flowchart diagram |
+| mermaid | `sequence` | Fenced `mermaid` sequence diagram |
+| mermaid | `obsidian-linked` | Flowchart with `internal-link` class for wikilink routing |
+| styling | `cssclasses-frontmatter` | YAML `cssclasses:` block for a given class |
+| styling | `wide-page-snippet` | Full `wide-page.css` — mermaid breakout for both Reading and Live-Preview |
+| styling | `file-line-width-override` | `--file-line-width` override (with Minimal-theme `--line-width` companion) |
+| styling | `container-breakout` | Generic breakout recipe for any child block (callouts, tables, code blocks, etc.) |
 
 ## Resources
 
@@ -276,6 +284,18 @@ Validates that notes referencing `.docx` files also mention a `.md` output. Uses
 ### Linter
 Validates heading structure (single H1), blank line normalization, and frontmatter placement. Driven by `linter_expectations` from runtime config.
 
+### Dataview
+Knows fenced `dataview` / `dataviewjs` query blocks and inline `` `= expr` `` syntax. Surfaces configured views and custom prefix.
+
+### Datacore
+Knows fenced `datacore` reactive component blocks. Disabled-by-default unless the operator opts in; still available via explicit pack selection.
+
+### Mermaid
+Validates fenced `mermaid` blocks against Obsidian's bundled Mermaid v10.x: first-line diagram keyword, unquoted special characters in flowchart labels, and balanced brackets. Honors the profile's `mermaid_allowed_diagrams` list.
+
+### Styling
+Covers per-note styling via the `cssclasses` frontmatter property and vault CSS snippets. Flags the deprecated singular `cssclass:` form and points to the plural `cssclasses:` list. Generators emit the full `wide-page.css` pattern (mermaid breakout for both Reading and Live-Preview), `--file-line-width` overrides with Minimal-theme companions, and generic container-breakout recipes. Documents the Obsidian CSS variable taxonomy (Foundations / Components / Editor / Plugins / Window / Publish) and the Reading vs Live-Preview DOM surfaces.
+
 ---
 
 ## Development
@@ -299,7 +319,11 @@ obsidian_spec_mcp/
 │   ├── meta_bind.md
 │   ├── js_engine.md
 │   ├── docxer.md
-│   └── linter.md
+│   ├── linter.md
+│   ├── dataview.md
+│   ├── datacore.md
+│   ├── mermaid.md
+│   └── styling.md
 └── profiles/
     └── default_profile.json
 
@@ -361,7 +385,7 @@ Tests write to a `_spec_mcp_integration_test/` folder inside your vault and clea
 4. **Render** — Add a `_your_pack()` function in `renderers.py`.
 5. **Wire up** — Add the pack to the dispatcher dicts in `validators.py` and `renderers.py`.
 6. **Test** — Add test cases in `tests/test_gauntlet.py` and seed notes in `tests/fixtures/vault/your_pack/`.
-7. **Alias** — Add common aliases in `registry.py`'s `_ALIASES` dict.
+7. **Alias** — Add common aliases in `registry.py`'s `normalize_pack_name` function.
 
 ### Extending Validators
 

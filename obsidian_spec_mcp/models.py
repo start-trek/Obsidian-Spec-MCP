@@ -17,6 +17,7 @@ PackName = Literal[
     "dataview",
     "datacore",
     "mermaid",
+    "styling",
 ]
 
 

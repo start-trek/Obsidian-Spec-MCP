@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Annotated
 
 from mcp.server.fastmcp import FastMCP
@@ -10,6 +11,35 @@ from .models import PluginConfigPaths
 from .registry import available_packs, get_pack, load_doc_text, load_profile, normalize_pack_name, search_docs
 from .renderers import generate_snippet
 from .validators import validate_markdown
+
+# Error pattern library for mapping error messages to validation tools
+# Note: More specific patterns must come before general ones
+ERROR_PATTERNS = {
+    "Error parsing Mermaid diagram": {
+        "tool": "debug_mermaid",
+        "packs": ["mermaid"],
+        "message": "Mermaid parsing error detected - running debug analysis...",
+        "suggestion": "Use debug_mermaid for detailed analysis and fixes"
+    },
+    "Lexical error on line": {
+        "tool": "validate_obsidian_markdown",
+        "packs": ["mermaid"],
+        "message": "Mermaid syntax error detected - running validation...",
+        "suggestion": "Common causes: unquoted special characters (/ # : ()) in node labels"
+    },
+    "Unbalanced Templater tags": {
+        "tool": "validate_obsidian_markdown", 
+        "packs": ["templater"],
+        "message": "Templater syntax error detected - running validation...",
+        "suggestion": "Check for missing <% or %> tags"
+    },
+    "Tasks metadata markers": {
+        "tool": "validate_obsidian_markdown",
+        "packs": ["tasks"],
+        "message": "Tasks syntax error detected - running validation...",
+        "suggestion": "Ensure task metadata markers are on valid checklist items"
+    }
+}
 
 INSTRUCTIONS = (
     "Obsidian Spec MCP provides authoritative syntax references, validation, "
@@ -21,13 +51,26 @@ INSTRUCTIONS = (
     "3. **Validate** — call `validate_obsidian_markdown` on the draft before delivering it to the user.\n"
     "4. **Write** — use a separate vault-write server (e.g. mcp-obsidian) to persist the validated note.\n"
     "\n"
+    "## Debugging workflow\n"
+    "When encountering Obsidian rendering errors:\n"
+    "- **Mermaid errors**: Use `debug_mermaid` for lexical errors, parsing failures, or rendering issues\n"
+    "- **Syntax errors**: Use `validate_obsidian_markdown` with appropriate packs\n"
+    "- **Unknown errors**: Use `detect_error_pattern` to map error messages to validation tools\n"
+    "\n"
     "## Important guidelines\n"
     "- This server is **read-only**. It cannot write to an Obsidian vault. Use mcp-obsidian for writes.\n"
     "- Always validate before writing. Generated snippets should pass their own pack's validator.\n"
     "- When runtime plugin config paths are provided, they override the bundled defaults "
     "so that validation and generation match the user's actual vault settings.\n"
     "- Only use plugin-specific syntax (Tasks, Templater, etc.) when the corresponding pack is enabled.\n"
-    "- Bundled packs: core, tasks, templater, quickadd, meta_bind, js_engine, docxer, linter, dataview, datacore, mermaid.\n"
+    "- Bundled packs: core, tasks, templater, quickadd, meta_bind, js_engine, docxer, linter, dataview, datacore, mermaid, styling.\n"
+    "\n"
+    "## When to Use This Tool\n"
+    "- When encountering Obsidian rendering errors\n"
+    "- When syntax validation is needed\n"
+    "- When unsure about plugin-specific syntax\n"
+    "- When debugging existing markdown\n"
+    "- When Mermaid diagrams fail to parse or render\n"
 )
 
 mcp = FastMCP(
@@ -171,7 +214,7 @@ def validate_obsidian_markdown(
     datacore_path: str | None = None,
     mermaid_path: str | None = None,
 ) -> dict:
-    """Validate markdown against one or more Obsidian spec packs. Returns {valid: bool, packs_checked: [...], issues: [{pack, severity, message, line, suggestion}], summary: str}. Omit packs to use the profile's default_packs. Always call this before writing markdown to a vault. Does NOT write files — use mcp-obsidian for that."""
+    """Validate markdown against one or more Obsidian spec packs. Returns {valid: bool, packs_checked: [...], issues: [{pack, severity, message, line, suggestion}], summary: str, suggested_fixes: [...]}. Omit packs to use the profile's default_packs. Always call this before writing markdown to a vault. Does NOT write files — use mcp-obsidian for that."""
     runtime = load_effective_profile(
         profile_name=profile_name,
         config_paths=_runtime_paths(
@@ -190,7 +233,33 @@ def validate_obsidian_markdown(
     )
     selected = packs or runtime.profile.default_packs
     report = validate_markdown(markdown=markdown, packs=selected, profile=runtime.profile)
-    return report.model_dump(mode="json")
+    
+    # Generate suggested fixes for common issues
+    suggested_fixes = []
+    for issue in report.issues:
+        if issue.pack == "mermaid" and "special character" in issue.message.lower():
+            # Extract the problematic line and suggest fixes
+            if issue.line:
+                lines = markdown.split('\n')
+                if 0 < issue.line <= len(lines):
+                    original_line = lines[issue.line - 1]
+                    # Fix unquoted special characters in node labels
+                    fixed_line = re.sub(
+                        r'(\{|\[|\()([^{}[\]()"]*[/#:()][^{}[\]()"]*)(\}|\]|\))',
+                        lambda m: f'{m.group(1)}"{m.group(2)}"{m.group(3)}',
+                        original_line
+                    )
+                    if fixed_line != original_line:
+                        suggested_fixes.append({
+                            "line": issue.line,
+                            "original": original_line.strip(),
+                            "fixed": fixed_line.strip(),
+                            "explanation": "Unquoted special characters in node label - wrap in double quotes"
+                        })
+    
+    result = report.model_dump(mode="json")
+    result["suggested_fixes"] = suggested_fixes
+    return result
 
 
 @mcp.tool()
@@ -232,6 +301,112 @@ def generate_obsidian_snippet(
     )
     snippet = generate_snippet(pack=pack, intent=intent, title=title, details=details, profile=runtime.profile)
     return snippet.model_dump(mode="json")
+
+
+@mcp.tool()
+def detect_error_pattern(error_message: str) -> dict:
+    """Detect error patterns and map them to appropriate validation tools. Returns {pattern_found, tool, packs, message, suggestion}. Use when encountering Obsidian rendering errors to determine which validation tool to use."""
+    for pattern, config in ERROR_PATTERNS.items():
+        if pattern in error_message:
+            return {
+                "pattern_found": True,
+                "matched_pattern": pattern,
+                "tool": config["tool"],
+                "packs": config["packs"],
+                "message": config["message"],
+                "suggestion": config["suggestion"]
+            }
+    
+    return {
+        "pattern_found": False,
+        "tool": "validate_obsidian_markdown",
+        "packs": ["core", "mermaid"],
+        "message": "No specific error pattern detected - running general validation...",
+        "suggestion": "Consider checking syntax for all active plugins"
+    }
+
+
+@mcp.tool()
+def debug_mermaid(
+    markdown: str,
+    profile_name: str = "default",
+    profile_path: str | None = None,
+    tasks_path: str | None = None,
+    linter_path: str | None = None,
+    quickadd_path: str | None = None,
+    templater_path: str | None = None,
+    meta_bind_path: str | None = None,
+    js_engine_path: str | None = None,
+    docxer_path: str | None = None,
+    dataview_path: str | None = None,
+    datacore_path: str | None = None,
+    mermaid_path: str | None = None,
+) -> dict:
+    """Debug a Mermaid diagram that's not rendering. Returns detailed error analysis with line numbers, suggested fixes, and corrected code. Use when encountering Mermaid parsing errors or rendering failures."""
+    runtime = load_effective_profile(
+        profile_name=profile_name,
+        config_paths=_runtime_paths(
+            profile_path=profile_path,
+            tasks_path=tasks_path,
+            linter_path=linter_path,
+            quickadd_path=quickadd_path,
+            templater_path=templater_path,
+            meta_bind_path=meta_bind_path,
+            js_engine_path=js_engine_path,
+            docxer_path=docxer_path,
+            dataview_path=dataview_path,
+            datacore_path=datacore_path,
+            mermaid_path=mermaid_path,
+        ),
+    )
+    
+    # Run validation with enhanced error reporting
+    report = validate_markdown(markdown=markdown, packs=["mermaid"], profile=runtime.profile)
+    
+    # Generate comprehensive debugging analysis
+    analysis = {
+        "valid": report.valid,
+        "issues": [issue.model_dump(mode="json") for issue in report.issues],
+        "suggested_fixes": [],
+        "corrected_code": markdown,
+        "debug_steps": []
+    }
+    
+    # Analyze each issue and generate fixes
+    for issue in report.issues:
+        if issue.line and issue.line > 0:
+            lines = markdown.split('\n')
+            if 0 < issue.line <= len(lines):
+                original_line = lines[issue.line - 1]
+                fixed_line = original_line
+                
+                if "special character" in issue.message.lower():
+                    # Fix unquoted special characters
+                    fixed_line = re.sub(
+                        r'(\{|\[|\()([^{}[\]()"]*[/#:()][^{}[\]()"]*)(\}|\]|\))',
+                        lambda m: f'{m.group(1)}"{m.group(2)}"{m.group(3)}',
+                        original_line
+                    )
+                    analysis["debug_steps"].append(f"Line {issue.line}: Fixed unquoted special characters in node label")
+                
+                # Update the corrected code
+                if fixed_line != original_line:
+                    analysis["corrected_code"] = analysis["corrected_code"].replace(original_line, fixed_line)
+                    analysis["suggested_fixes"].append({
+                        "line": issue.line,
+                        "original": original_line.strip(),
+                        "fixed": fixed_line.strip(),
+                        "issue": issue.message,
+                        "suggestion": issue.suggestion
+                    })
+    
+    # Add debugging summary
+    if analysis["suggested_fixes"]:
+        analysis["summary"] = f"Found {len(analysis['suggested_fixes'])} fixable issues in Mermaid diagram"
+    else:
+        analysis["summary"] = "No syntax errors detected, but diagram may still have rendering issues"
+    
+    return analysis
 
 
 @mcp.tool()

@@ -53,6 +53,8 @@ MERMAID_DIAGRAM_KEYWORDS = {
     "architecture-beta",
 }
 MERMAID_SPECIAL_IN_LABEL_RE = re.compile(r"[/#:()]")
+CSSCLASS_SINGULAR_RE = re.compile(r"^cssclass\s*:\s*", re.MULTILINE)
+CSSCLASSES_PLURAL_RE = re.compile(r"^cssclasses\s*:\s*", re.MULTILINE)
 
 PRIORITY_MARKERS = ["🔺", "⏫", "🔼", "🔽", "⏬"]
 DATE_MARKERS = ["📅", "⏳", "🛫", "✅", "➕"]
@@ -86,6 +88,8 @@ def validate_markdown(markdown: str, packs: Iterable[str], profile: Profile | No
             issues.extend(_validate_datacore(markdown, profile))
         elif pack == "mermaid":
             issues.extend(_validate_mermaid(markdown, profile))
+        elif pack == "styling":
+            issues.extend(_validate_styling(markdown, profile))
 
     valid = not any(issue.severity == "error" for issue in issues)
     summary = "Validation passed." if valid else "Validation found one or more errors."
@@ -635,4 +639,31 @@ def _check_bracket_balance(body_lines: list[str], start_line: int) -> list[Valid
                     suggestion=f"Ensure every '{opener}' has a matching '{closer}'.",
                 )
             )
+    return issues
+
+
+def _validate_styling(markdown: str, profile: Profile) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    # Only check frontmatter content, not snippet docs that may discuss the deprecated key.
+    frontmatter_match = YAML_START_RE.match(markdown)
+    if not frontmatter_match:
+        return issues
+    frontmatter = frontmatter_match.group(0)
+    # Match `cssclass:` exactly (not `cssclasses:`) at the start of a frontmatter line.
+    for match in CSSCLASS_SINGULAR_RE.finditer(frontmatter):
+        # Skip if the match is actually part of `cssclasses:` (handled by the negative below).
+        line_start = frontmatter.rfind("\n", 0, match.start()) + 1
+        line_text = frontmatter[line_start : frontmatter.find("\n", match.end())]
+        if line_text.lstrip().startswith("cssclasses"):
+            continue
+        line_no = frontmatter.count("\n", 0, match.start()) + 1
+        issues.append(
+            ValidationIssue(
+                pack="styling",
+                severity="info",
+                line=line_no,
+                message="`cssclass:` (singular) is deprecated in Obsidian frontmatter.",
+                suggestion="Use the plural list form: `cssclasses:` with a YAML list of values.",
+            )
+        )
     return issues

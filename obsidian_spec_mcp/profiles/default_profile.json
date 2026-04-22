@@ -2,7 +2,7 @@
   "name": "default",
   "use_wikilinks": true,
   "prefer_properties": true,
-  "default_packs": ["core", "tasks", "mermaid"],
+  "default_packs": ["core", "tasks", "mermaid", "styling"],
   "tasks_global_filter": "#task",
   "tasks_custom_statuses": [],
   "linter_expectations": {

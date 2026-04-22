@@ -229,6 +229,48 @@ PACKS: dict[str, PackInfo] = {
         ],
         enabled_by_default=True,
     ),
+    "styling": PackInfo(
+        name="styling",
+        title="Styling & CSS snippets",
+        description=(
+            "Per-note styling via the cssclasses property and vault CSS snippets. "
+            "Covers Obsidian's CSS variable taxonomy (Foundations / Components / Editor / "
+            "Plugins / Window / Publish), the Reading vs Live-Preview DOM surfaces, "
+            "readable-line-width overrides, and container breakout patterns. "
+            "Scope is authoring small snippets under .obsidian/snippets/, not building "
+            "full themes."
+        ),
+        syntax_kinds=[
+            "cssclasses-frontmatter",
+            "css-snippet",
+            "css-variable-override",
+            "readable-line-width-override",
+            "container-breakout",
+        ],
+        docs=[
+            DocSource(label="Obsidian Help - CSS snippets", url="https://help.obsidian.md/Extending+Obsidian/CSS+snippets"),
+            DocSource(label="Obsidian Help - Properties (cssclasses)", url="https://help.obsidian.md/Editing+and+formatting/Properties"),
+            DocSource(label="Dev Docs - CSS variables index", url="https://docs.obsidian.md/Reference/CSS+variables/CSS+variables"),
+            DocSource(label="Dev Docs - Editor/File CSS variables", url="https://docs.obsidian.md/Reference/CSS+variables/Editor/File"),
+            DocSource(label="Dev Docs - About styling", url="https://docs.obsidian.md/Themes/App+themes/About+styling+Obsidian"),
+            DocSource(label="Forum: cssclass and readable line length", url="https://forum.obsidian.md/t/how-to-cssclass-and-readable-line-length/74901"),
+            DocSource(label="Forum: disable readable line length on single note", url="https://forum.obsidian.md/t/disable-readable-line-length-on-single-note/104655"),
+            DocSource(label="Forum: optional full-width note (CSS)", url="https://forum.obsidian.md/t/optional-full-width-note-css/15444"),
+        ],
+        examples=[
+            "---\ncssclasses:\n  - wide-page\n---",
+            ".wide-page { --file-line-width: 100%; }\nbody.minimal-theme.minimal-theme .wide-page { --line-width: 100%; }",
+            ".wide-page .block-language-mermaid {\n  width: calc(100vw - 400px);\n  position: relative;\n  left: 50%;\n  transform: translateX(-50%);\n}",
+        ],
+        validator_notes=[
+            "Use `cssclasses` (plural list); the singular `cssclass` form is deprecated.",
+            "Overrides to --file-line-width require Settings -> Editor -> Readable line length to be enabled.",
+            "Minimal theme uses --line-width rather than --file-line-width; override both for theme-agnostic snippets.",
+            "Reading mode (`.markdown-preview-view`) and Live Preview (`.markdown-source-view.mod-cm6`) have different DOM; target both when styling note contents.",
+            "After editing a snippet, toggle it off/on in Settings -> Appearance -> CSS snippets, or reload Obsidian.",
+        ],
+        enabled_by_default=True,
+    ),
 }
 
 
@@ -271,6 +313,14 @@ def normalize_pack_name(name: str) -> str:
         "diagram": "mermaid",
         "diagrams": "mermaid",
         "mmd": "mermaid",
+        "css": "styling",
+        "cssclass": "styling",
+        "cssclasses": "styling",
+        "theme": "styling",
+        "style": "styling",
+        "styles": "styling",
+        "snippet": "styling",
+        "snippets": "styling",
     }
     return aliases.get(token, token)
 

@@ -42,7 +42,7 @@ from obsidian_spec_mcp.validators import validate_markdown
 CONFIGS_DIR = Path(__file__).resolve().parent.parent / "test_vault_configs"
 VAULT_DIR = Path(__file__).resolve().parent / "fixtures" / "vault"
 
-ALL_PACKS = ["core", "tasks", "templater", "quickadd", "meta_bind", "js_engine", "docxer", "linter", "dataview", "datacore", "mermaid"]
+ALL_PACKS = ["core", "tasks", "templater", "quickadd", "meta_bind", "js_engine", "docxer", "linter", "dataview", "datacore", "mermaid", "styling"]
 
 
 def _config_paths(**overrides) -> PluginConfigPaths:
@@ -115,6 +115,7 @@ class TestSearchSpec:
         "dataview": "query",
         "datacore": "view",
         "mermaid": "flowchart",
+        "styling": "cssclasses",
     }
 
     @pytest.mark.parametrize("pack_name", ALL_PACKS)
@@ -584,6 +585,13 @@ class TestAliasGauntlet:
         "dvjs": "dataview",
         "data_view": "dataview",
         "data_core": "datacore",
+        "css": "styling",
+        "cssclass": "styling",
+        "cssclasses": "styling",
+        "theme": "styling",
+        "style": "styling",
+        "snippet": "styling",
+        "snippets": "styling",
     }
 
     @pytest.mark.parametrize("alias,expected", list(ALIASES.items()))
@@ -599,6 +607,54 @@ class TestAliasGauntlet:
     def test_load_doc_via_alias(self, alias, expected):
         text = load_doc_text(alias)
         assert len(text) > 0
+
+
+# ===================================================================
+# Styling pack validation
+# ===================================================================
+
+class TestStylingGauntlet:
+    def test_valid_cssclasses_plural(self):
+        md = "---\ncssclasses:\n  - wide-page\n---\n\n# Test\n"
+        report = validate_markdown(md, ["styling"], _effective_profile())
+        assert report.valid
+        assert len([i for i in report.issues if i.pack == "styling"]) == 0
+
+    def test_deprecated_cssclass_singular_flagged(self):
+        md = "---\ncssclass: wide-page\n---\n\n# Test\n"
+        report = validate_markdown(md, ["styling"], _effective_profile())
+        infos = [i for i in report.issues if i.pack == "styling"]
+        assert len(infos) >= 1
+        assert any("deprecated" in i.message.lower() for i in infos)
+        assert any("cssclasses" in (i.suggestion or "") for i in infos)
+
+    def test_no_frontmatter_produces_no_issues(self):
+        md = "# Just a note\n\nNo frontmatter here.\n"
+        report = validate_markdown(md, ["styling"], _effective_profile())
+        assert not any(i.pack == "styling" for i in report.issues)
+
+    def test_generate_cssclasses_frontmatter(self):
+        snip = generate_snippet("styling", "cssclasses-frontmatter", details={"class_name": "wide-page"})
+        assert snip.pack == "styling"
+        assert "cssclasses:" in snip.markdown
+        assert "- wide-page" in snip.markdown
+
+    def test_generate_wide_page_snippet(self):
+        snip = generate_snippet("styling", "wide-page-snippet")
+        assert "wide-page" in snip.markdown
+        assert "calc(100vw" in snip.markdown
+        assert "translateX(-50%)" in snip.markdown
+
+    def test_generate_file_line_width_override(self):
+        snip = generate_snippet("styling", "file-line-width-override", details={"class_name": "wideish", "value": "70rem"})
+        assert "--file-line-width: 70rem" in snip.markdown
+        assert "--line-width: 70rem" in snip.markdown
+        assert "minimal-theme" in snip.markdown
+
+    def test_generate_container_breakout(self):
+        snip = generate_snippet("styling", "container-breakout", details={"target_selector": ".callout"})
+        assert ".callout" in snip.markdown
+        assert "translateX(-50%)" in snip.markdown
 
 
 # ===================================================================
@@ -620,6 +676,7 @@ class TestGenerateThenValidateAll:
         "dataview": "query",
         "datacore": "view",
         "mermaid": "flowchart",
+        "styling": "wide-page-snippet",
     }
 
     @pytest.mark.parametrize("pack_name", ALL_PACKS)
@@ -645,7 +702,7 @@ class TestServerToolFunctions:
     def test_list_packs(self):
         from obsidian_spec_mcp.server import list_packs
         result = list_packs()
-        assert len(result) == 11
+        assert len(result) == 12
         names = {p["name"] for p in result}
         assert names == set(ALL_PACKS)
 
