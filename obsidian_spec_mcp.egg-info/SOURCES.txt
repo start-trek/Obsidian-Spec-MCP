@@ -15,9 +15,12 @@ obsidian_spec_mcp.egg-info/requires.txt
 obsidian_spec_mcp.egg-info/top_level.txt
 obsidian_spec_mcp/docs/__init__.py
 obsidian_spec_mcp/docs/core.md
+obsidian_spec_mcp/docs/datacore.md
+obsidian_spec_mcp/docs/dataview.md
 obsidian_spec_mcp/docs/docxer.md
 obsidian_spec_mcp/docs/js_engine.md
 obsidian_spec_mcp/docs/linter.md
+obsidian_spec_mcp/docs/mermaid.md
 obsidian_spec_mcp/docs/meta_bind.md
 obsidian_spec_mcp/docs/quickadd.md
 obsidian_spec_mcp/docs/tasks.md
@@ -27,6 +30,7 @@ obsidian_spec_mcp/profiles/default_profile.json
 tests/test_config.py
 tests/test_gauntlet.py
 tests/test_integration.py
+tests/test_mermaid.py
 tests/test_registry.py
 tests/test_renderers.py
 tests/test_server.py

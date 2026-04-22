@@ -27,7 +27,7 @@ INSTRUCTIONS = (
     "- When runtime plugin config paths are provided, they override the bundled defaults "
     "so that validation and generation match the user's actual vault settings.\n"
     "- Only use plugin-specific syntax (Tasks, Templater, etc.) when the corresponding pack is enabled.\n"
-    "- Bundled packs: core, tasks, templater, quickadd, meta_bind, js_engine, docxer, linter, dataview, datacore.\n"
+    "- Bundled packs: core, tasks, templater, quickadd, meta_bind, js_engine, docxer, linter, dataview, datacore, mermaid.\n"
 )
 
 mcp = FastMCP(
@@ -49,6 +49,7 @@ def _runtime_paths(
     docxer_path: str | None = None,
     dataview_path: str | None = None,
     datacore_path: str | None = None,
+    mermaid_path: str | None = None,
 ) -> PluginConfigPaths:
     return PluginConfigPaths(
         profile_path=profile_path,
@@ -61,6 +62,7 @@ def _runtime_paths(
         docxer_path=docxer_path,
         dataview_path=dataview_path,
         datacore_path=datacore_path,
+        mermaid_path=mermaid_path,
     )
 
 
@@ -130,6 +132,7 @@ def get_effective_profile(
     docxer_path: str | None = None,
     dataview_path: str | None = None,
     datacore_path: str | None = None,
+    mermaid_path: str | None = None,
 ) -> dict:
     """Load the bundled profile plus any runtime plugin config files or overlays. Returns {profile: {...}, sources: [{kind, path, loaded, error}]}. Pass file paths to plugin JSON configs (e.g. tasks_path pointing to the Tasks plugin data.json) to tailor validation and generation to the user's actual vault settings."""
     report = load_effective_profile(
@@ -145,6 +148,7 @@ def get_effective_profile(
             docxer_path=docxer_path,
             dataview_path=dataview_path,
             datacore_path=datacore_path,
+            mermaid_path=mermaid_path,
         ),
     )
     return report.model_dump(mode="json")
@@ -165,6 +169,7 @@ def validate_obsidian_markdown(
     docxer_path: str | None = None,
     dataview_path: str | None = None,
     datacore_path: str | None = None,
+    mermaid_path: str | None = None,
 ) -> dict:
     """Validate markdown against one or more Obsidian spec packs. Returns {valid: bool, packs_checked: [...], issues: [{pack, severity, message, line, suggestion}], summary: str}. Omit packs to use the profile's default_packs. Always call this before writing markdown to a vault. Does NOT write files — use mcp-obsidian for that."""
     runtime = load_effective_profile(
@@ -180,6 +185,7 @@ def validate_obsidian_markdown(
             docxer_path=docxer_path,
             dataview_path=dataview_path,
             datacore_path=datacore_path,
+            mermaid_path=mermaid_path,
         ),
     )
     selected = packs or runtime.profile.default_packs
@@ -204,8 +210,9 @@ def generate_obsidian_snippet(
     docxer_path: str | None = None,
     dataview_path: str | None = None,
     datacore_path: str | None = None,
+    mermaid_path: str | None = None,
 ) -> dict:
-    """Generate a starter markdown snippet for a specific pack and intent. Returns {pack, intent, markdown, notes, profile_hints}. Common intents: core/note, tasks/task-line, tasks/query, templater/project-template, quickadd/capture, meta_bind/form, js_engine/script, docxer/convert, linter/hygiene, dataview/query, dataview/inline, dataview/dataviewjs, datacore/view. Validate the returned markdown before writing it to a vault."""
+    """Generate a starter markdown snippet for a specific pack and intent. Returns {pack, intent, markdown, notes, profile_hints}. Common intents: core/note, tasks/task-line, tasks/query, templater/project-template, quickadd/capture, meta_bind/form, js_engine/script, docxer/convert, linter/hygiene, dataview/query, dataview/inline, dataview/dataviewjs, datacore/view, mermaid/flowchart, mermaid/sequence, mermaid/class, mermaid/state, mermaid/er, mermaid/gantt, mermaid/pie, mermaid/mindmap, mermaid/timeline, mermaid/quadrant, mermaid/gitgraph, mermaid/journey, mermaid/obsidian-linked. Validate the returned markdown before writing it to a vault."""
     details = json.loads(details_json) if details_json else {}
     runtime = load_effective_profile(
         profile_name=profile_name,
@@ -220,6 +227,7 @@ def generate_obsidian_snippet(
             docxer_path=docxer_path,
             dataview_path=dataview_path,
             datacore_path=datacore_path,
+            mermaid_path=mermaid_path,
         ),
     )
     snippet = generate_snippet(pack=pack, intent=intent, title=title, details=details, profile=runtime.profile)

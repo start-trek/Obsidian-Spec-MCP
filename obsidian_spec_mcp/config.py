@@ -22,6 +22,7 @@ ENV_MAP = {
     "docxer_path": "OBS_SPEC_DOCXER_CONFIG_PATH",
     "dataview_path": "OBS_SPEC_DATAVIEW_CONFIG_PATH",
     "datacore_path": "OBS_SPEC_DATACORE_CONFIG_PATH",
+    "mermaid_path": "OBS_SPEC_MERMAID_CONFIG_PATH",
 }
 
 
@@ -72,6 +73,10 @@ def load_effective_profile(profile_name: str = "default", config_paths: PluginCo
     datacore_cfg = _load_mapping(paths.datacore_path, "datacore-config", sources)
     if datacore_cfg:
         _merge_profile(profile, _extract_datacore(datacore_cfg), source_label=str(paths.datacore_path))
+
+    mermaid_cfg = _load_mapping(paths.mermaid_path, "mermaid-config", sources)
+    if mermaid_cfg:
+        _merge_profile(profile, _extract_mermaid(mermaid_cfg), source_label=str(paths.mermaid_path))
 
     profile.config_sources = [src.path for src in sources if src.loaded]
     return EffectiveProfileReport(profile=profile, sources=sources)
@@ -224,4 +229,21 @@ def _extract_datacore(data: dict[str, Any]) -> dict[str, Any]:
     components = data.get("components") or data.get("customComponents") or []
     if components:
         overlay["datacore_components"] = [str(x) for x in components]
+    return overlay
+
+
+def _extract_mermaid(data: dict[str, Any]) -> dict[str, Any]:
+    overlay: dict[str, Any] = {}
+    allowed = data.get("allowedDiagrams") or data.get("allowed_diagrams")
+    if isinstance(allowed, list):
+        overlay["mermaid_allowed_diagrams"] = [str(x) for x in allowed]
+    strict = data.get("strictParse")
+    if isinstance(strict, bool):
+        overlay["mermaid_strict_parse"] = strict
+    cli = data.get("cliPath") or data.get("cli_path")
+    if cli:
+        overlay["mermaid_cli_path"] = str(cli)
+    allow_wikilinks = data.get("allowWikilinksInLabels")
+    if isinstance(allow_wikilinks, bool):
+        overlay["mermaid_allow_wikilinks_in_labels"] = allow_wikilinks
     return overlay

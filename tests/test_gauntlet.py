@@ -42,7 +42,7 @@ from obsidian_spec_mcp.validators import validate_markdown
 CONFIGS_DIR = Path(__file__).resolve().parent.parent / "test_vault_configs"
 VAULT_DIR = Path(__file__).resolve().parent / "fixtures" / "vault"
 
-ALL_PACKS = ["core", "tasks", "templater", "quickadd", "meta_bind", "js_engine", "docxer", "linter", "dataview", "datacore"]
+ALL_PACKS = ["core", "tasks", "templater", "quickadd", "meta_bind", "js_engine", "docxer", "linter", "dataview", "datacore", "mermaid"]
 
 
 def _config_paths(**overrides) -> PluginConfigPaths:
@@ -58,6 +58,7 @@ def _config_paths(**overrides) -> PluginConfigPaths:
         "docxer_path": str(CONFIGS_DIR / "docxer.json"),
         "dataview_path": str(CONFIGS_DIR / "dataview.json"),
         "datacore_path": str(CONFIGS_DIR / "datacore.json"),
+        "mermaid_path": str(CONFIGS_DIR / "mermaid.json"),
     }
     base.update(overrides)
     return PluginConfigPaths(**base)
@@ -113,6 +114,7 @@ class TestSearchSpec:
         "linter": "heading",
         "dataview": "query",
         "datacore": "view",
+        "mermaid": "flowchart",
     }
 
     @pytest.mark.parametrize("pack_name", ALL_PACKS)
@@ -617,6 +619,7 @@ class TestGenerateThenValidateAll:
         "linter": "hygiene",
         "dataview": "query",
         "datacore": "view",
+        "mermaid": "flowchart",
     }
 
     @pytest.mark.parametrize("pack_name", ALL_PACKS)
@@ -642,7 +645,7 @@ class TestServerToolFunctions:
     def test_list_packs(self):
         from obsidian_spec_mcp.server import list_packs
         result = list_packs()
-        assert len(result) == 10
+        assert len(result) == 11
         names = {p["name"] for p in result}
         assert names == set(ALL_PACKS)
 

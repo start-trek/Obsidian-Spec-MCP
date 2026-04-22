@@ -36,6 +36,8 @@ def generate_snippet(
         return _dataview(intent=intent, title=title, details=details, profile=profile)
     if normalized == "datacore":
         return _datacore(intent=intent, title=title, details=details, profile=profile)
+    if normalized == "mermaid":
+        return _mermaid(intent=intent, title=title, details=details, profile=profile)
     return _core(intent=intent, title=title, details=details, profile=profile)
 
 
@@ -282,4 +284,144 @@ def _datacore(intent: str, title: str, details: dict, profile: Profile) -> Gener
         markdown=markdown,
         notes=notes,
         profile_hints=custom_components,
+    )
+
+
+_MERMAID_TEMPLATES: dict[str, str] = {
+    "flowchart": (
+        "```mermaid\n"
+        "flowchart TD\n"
+        "    A[Start] --> B{\"Decision\"}\n"
+        "    B -->|yes| C[Continue]\n"
+        "    B -->|no| D[Stop]\n"
+        "```"
+    ),
+    "sequence": (
+        "```mermaid\n"
+        "sequenceDiagram\n"
+        "    participant Alice\n"
+        "    participant Bob\n"
+        "    Alice->>Bob: Hello\n"
+        "    Bob-->>Alice: Hi\n"
+        "```"
+    ),
+    "class": (
+        "```mermaid\n"
+        "classDiagram\n"
+        "    class Animal {\n"
+        "        +String name\n"
+        "        +move() void\n"
+        "    }\n"
+        "    Animal <|-- Dog\n"
+        "```"
+    ),
+    "state": (
+        "```mermaid\n"
+        "stateDiagram-v2\n"
+        "    [*] --> Idle\n"
+        "    Idle --> Running: start\n"
+        "    Running --> Idle: stop\n"
+        "    Running --> [*]\n"
+        "```"
+    ),
+    "er": (
+        "```mermaid\n"
+        "erDiagram\n"
+        "    CUSTOMER ||--o{ ORDER : places\n"
+        "    ORDER ||--|{ LINE-ITEM : contains\n"
+        "```"
+    ),
+    "gantt": (
+        "```mermaid\n"
+        "gantt\n"
+        "    title Project Timeline\n"
+        "    dateFormat YYYY-MM-DD\n"
+        "    section Phase 1\n"
+        "    Task A :a1, 2026-01-01, 30d\n"
+        "    Task B :after a1, 20d\n"
+        "```"
+    ),
+    "pie": (
+        "```mermaid\n"
+        "pie title Allocation\n"
+        "    \"Work\" : 40\n"
+        "    \"Sleep\" : 33\n"
+        "    \"Other\" : 27\n"
+        "```"
+    ),
+    "mindmap": (
+        "```mermaid\n"
+        "mindmap\n"
+        "    root((Topic))\n"
+        "        Branch A\n"
+        "            Leaf A1\n"
+        "        Branch B\n"
+        "```"
+    ),
+    "timeline": (
+        "```mermaid\n"
+        "timeline\n"
+        "    title History\n"
+        "    2024 : Kickoff\n"
+        "    2025 : Launch\n"
+        "    2026 : Expansion\n"
+        "```"
+    ),
+    "quadrant": (
+        "```mermaid\n"
+        "quadrantChart\n"
+        "    title Effort vs Impact\n"
+        "    x-axis Low Effort --> High Effort\n"
+        "    y-axis Low Impact --> High Impact\n"
+        "    Quick Wins: [0.2, 0.8]\n"
+        "    Big Bets: [0.8, 0.8]\n"
+        "```"
+    ),
+    "gitgraph": (
+        "```mermaid\n"
+        "gitGraph\n"
+        "    commit\n"
+        "    branch feature\n"
+        "    commit\n"
+        "    checkout main\n"
+        "    merge feature\n"
+        "```"
+    ),
+    "journey": (
+        "```mermaid\n"
+        "journey\n"
+        "    title User onboarding\n"
+        "    section Sign up\n"
+        "      Visit site: 5: User\n"
+        "      Create account: 4: User\n"
+        "```"
+    ),
+    "obsidian-linked": (
+        "```mermaid\n"
+        "flowchart LR\n"
+        "    A[Project Note] --> B[Reference]\n"
+        "    class A,B internal-link;\n"
+        "```"
+    ),
+}
+
+
+def _mermaid(intent: str, title: str, details: dict, profile: Profile) -> GeneratedSnippet:
+    key = intent.split("/")[-1] if "/" in intent else intent
+    template = _MERMAID_TEMPLATES.get(key) or _MERMAID_TEMPLATES["flowchart"]
+    notes = [
+        "Quote labels that contain special characters like /, #, :, or parentheses.",
+        "Obsidian bundles Mermaid v10.x; some v11 shapes and beta diagrams may not render.",
+    ]
+    hints: list[str] = []
+    if profile.mermaid_allowed_diagrams:
+        hints.append("Profile-allowed diagram types: " + ", ".join(profile.mermaid_allowed_diagrams))
+    if key == "obsidian-linked":
+        notes.append("Node IDs must match target note filenames for internal-link routing.")
+    return GeneratedSnippet(
+        pack="mermaid",
+        intent=intent,
+        markdown=template,
+        notes=notes,
+        profile_hints=hints,
     )

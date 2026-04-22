@@ -31,6 +31,7 @@ A spec-centric [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) 
 | **linter** | linter-profile, lint-style | Linter: heading, spacing, and frontmatter hygiene rules |
 | **dataview** | dataview-query, dataviewjs, inline-dataview | Dataview: dynamic queries and live data views |
 | **datacore** | datacore-component, datacore-block | Datacore: reactive data components (experimental) |
+| **mermaid** | mermaid-block, mermaid-flowchart, mermaid-sequence, mermaid-class, mermaid-state, mermaid-er, mermaid-gantt, mermaid-pie, mermaid-mindmap, mermaid-timeline, mermaid-quadrant, … | Mermaid diagrams aligned with Obsidian's bundled Mermaid v10.x; catches unquoted special chars in flowchart labels |
 
 ---
 

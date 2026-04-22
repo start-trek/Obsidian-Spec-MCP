@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: obsidian-spec-mcp
-Version: 0.1.0
+Version: 0.2.0
 Summary: Spec-centric MCP server for Obsidian syntax, semantics, and community-plugin patterns
 Requires-Python: >=3.11
 Description-Content-Type: text/markdown
@@ -39,6 +39,9 @@ A spec-centric [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) 
 | **js_engine** | js-engine-block | JS Engine: executable JavaScript code blocks |
 | **docxer** | docxer-workflow | Docxer: `.docx` to markdown conversion workflow |
 | **linter** | linter-profile, lint-style | Linter: heading, spacing, and frontmatter hygiene rules |
+| **dataview** | dataview-query, dataviewjs, inline-dataview | Dataview: dynamic queries and live data views |
+| **datacore** | datacore-component, datacore-block | Datacore: reactive data components (experimental) |
+| **mermaid** | mermaid-block, mermaid-flowchart, mermaid-sequence, mermaid-class, mermaid-state, mermaid-er, mermaid-gantt, mermaid-pie, mermaid-mindmap, mermaid-timeline, mermaid-quadrant, … | Mermaid diagrams aligned with Obsidian's bundled Mermaid v10.x; catches unquoted special chars in flowchart labels |
 
 ---
 
@@ -155,6 +158,10 @@ Add to `claude_desktop_config.json`:
 | js_engine | `script` | Fenced `js-engine` block |
 | docxer | `convert` | `.docx` conversion workflow note |
 | linter | `hygiene` | Clean note skeleton |
+| dataview | `query` | Fenced `dataview` query block |
+| dataview | `inline` | Inline Dataview expression |
+| dataview | `dataviewjs` | Fenced `dataviewjs` JavaScript block |
+| datacore | `view` | Fenced `datacore` reactive component |
 
 ## Resources
 

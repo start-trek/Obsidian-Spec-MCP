@@ -22,7 +22,7 @@ class TestListPacks:
         from obsidian_spec_mcp.server import list_packs
         result = list_packs()
         assert isinstance(result, list)
-        assert len(result) == 10
+        assert len(result) == 11
 
     def test_enabled_only(self):
         result = list_packs(enabled_only=True)

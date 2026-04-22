@@ -183,6 +183,52 @@ PACKS: dict[str, PackInfo] = {
         ],
         enabled_by_default=False,
     ),
+    "mermaid": PackInfo(
+        name="mermaid",
+        title="Mermaid",
+        description=(
+            "Mermaid diagrams inside fenced mermaid code blocks. Scope is aligned with "
+            "the Mermaid v10.x bundled by Obsidian desktop v1.4.0+: flowchart, sequence, "
+            "class, state, er, gantt, pie, gitGraph, journey, mindmap, timeline, "
+            "quadrantChart, requirementDiagram, and C4 diagrams."
+        ),
+        syntax_kinds=[
+            "mermaid-block",
+            "mermaid-flowchart",
+            "mermaid-sequence",
+            "mermaid-class",
+            "mermaid-state",
+            "mermaid-er",
+            "mermaid-gantt",
+            "mermaid-pie",
+            "mermaid-gitgraph",
+            "mermaid-journey",
+            "mermaid-mindmap",
+            "mermaid-timeline",
+            "mermaid-quadrant",
+            "mermaid-requirement",
+            "mermaid-c4",
+        ],
+        docs=[
+            DocSource(label="Mermaid Syntax Index", url="https://mermaid.js.org/intro/syntax-reference.html"),
+            DocSource(label="Mermaid Flowchart Syntax", url="https://mermaid.js.org/syntax/flowchart.html"),
+            DocSource(label="Obsidian Advanced Syntax (Diagram)", url="https://obsidian.md/help/advanced-syntax"),
+            DocSource(label="Obsidian internal-link class in Mermaid", url="https://forum.obsidian.md/t/hassle-free-linking-in-mermaid-graphs/6983"),
+        ],
+        examples=[
+            "```mermaid\nflowchart TD\n    A[Start] --> B{\"/route\"}\n    B -->|yes| C[Done]\n```",
+            "```mermaid\nsequenceDiagram\n    Alice->>Bob: Hello\n    Bob-->>Alice: Hi\n```",
+            "```mermaid\nflowchart LR\n    A[Project Note] --> B[Reference]\n    class A,B internal-link;\n```",
+        ],
+        validator_notes=[
+            "Mermaid diagrams live in fenced code blocks with language mermaid.",
+            "First non-blank line of the block must be a diagram keyword (flowchart, graph, sequenceDiagram, classDiagram, stateDiagram, stateDiagram-v2, erDiagram, journey, gantt, pie, gitGraph, mindmap, timeline, quadrantChart, requirementDiagram, C4Context, etc.).",
+            "Special characters (/, #, :, parentheses) inside flowchart node labels break the lexer. Wrap labels in quotes, e.g. D{\"/route\"}.",
+            "Obsidian renders internal links when a node is assigned the internal-link CSS class: `class A internal-link;`.",
+            "Obsidian bundles Mermaid v10.x, so v11+ shapes and beta diagrams may not render even if valid Mermaid.",
+        ],
+        enabled_by_default=True,
+    ),
 }
 
 
@@ -220,6 +266,11 @@ def normalize_pack_name(name: str) -> str:
         "dvjs": "dataview",
         "data_view": "dataview",
         "data_core": "datacore",
+        "mermaidjs": "mermaid",
+        "mermaid_js": "mermaid",
+        "diagram": "mermaid",
+        "diagrams": "mermaid",
+        "mmd": "mermaid",
     }
     return aliases.get(token, token)
 

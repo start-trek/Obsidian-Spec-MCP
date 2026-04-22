@@ -16,6 +16,7 @@ PackName = Literal[
     "linter",
     "dataview",
     "datacore",
+    "mermaid",
 ]
 
 
@@ -88,6 +89,10 @@ class Profile(BaseModel):
     dataview_views: list[str] = Field(default_factory=list)
     dataview_custom_prefix: str | None = None
     datacore_components: list[str] = Field(default_factory=list)
+    mermaid_allowed_diagrams: list[str] = Field(default_factory=list)
+    mermaid_strict_parse: bool = False
+    mermaid_cli_path: str | None = None
+    mermaid_allow_wikilinks_in_labels: bool = True
     config_sources: list[str] = Field(default_factory=list)
 
 
@@ -114,6 +119,7 @@ class PluginConfigPaths(BaseModel):
     docxer_path: str | None = None
     dataview_path: str | None = None
     datacore_path: str | None = None
+    mermaid_path: str | None = None
 
 
 class RuntimeOptions(BaseModel):

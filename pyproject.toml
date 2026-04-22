@@ -1,6 +1,6 @@
 [project]
 name = "obsidian-spec-mcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "Spec-centric MCP server for Obsidian syntax, semantics, and community-plugin patterns"
 readme = "README.md"
 requires-python = ">=3.11"

@@ -21,6 +21,38 @@ WIKILINK_RE = re.compile(r"(?<!!)\[\[[^\]]+\]\]")
 EMBED_RE = re.compile(r"!\[\[[^\]]+\]\]")
 INLINE_MD_LINK_RE = re.compile(r"\[[^\]]+\]\((?!https?://|mailto:)[^)]+\)")
 YAML_START_RE = re.compile(r"^---\n.*?\n---\n", re.DOTALL)
+MERMAID_BLOCK_RE = re.compile(r"^(?P<indent>[ \t]*)```mermaid[ \t]*\n(?P<body>.*?)\n(?P=indent)```", re.DOTALL | re.MULTILINE)
+MERMAID_OPEN_FENCE_RE = re.compile(r"^[ \t]*```mermaid\b", re.MULTILINE)
+
+MERMAID_DIAGRAM_KEYWORDS = {
+    "flowchart",
+    "graph",
+    "sequenceDiagram",
+    "classDiagram",
+    "classDiagram-v2",
+    "stateDiagram",
+    "stateDiagram-v2",
+    "erDiagram",
+    "journey",
+    "gantt",
+    "pie",
+    "gitGraph",
+    "mindmap",
+    "timeline",
+    "quadrantChart",
+    "requirementDiagram",
+    "C4Context",
+    "C4Container",
+    "C4Component",
+    "C4Dynamic",
+    "C4Deployment",
+    "sankey-beta",
+    "xychart-beta",
+    "block-beta",
+    "packet-beta",
+    "architecture-beta",
+}
+MERMAID_SPECIAL_IN_LABEL_RE = re.compile(r"[/#:()]")
 
 PRIORITY_MARKERS = ["🔺", "⏫", "🔼", "🔽", "⏬"]
 DATE_MARKERS = ["📅", "⏳", "🛫", "✅", "➕"]
@@ -52,6 +84,8 @@ def validate_markdown(markdown: str, packs: Iterable[str], profile: Profile | No
             issues.extend(_validate_dataview(markdown, profile))
         elif pack == "datacore":
             issues.extend(_validate_datacore(markdown, profile))
+        elif pack == "mermaid":
+            issues.extend(_validate_mermaid(markdown, profile))
 
     valid = not any(issue.severity == "error" for issue in issues)
     summary = "Validation passed." if valid else "Validation found one or more errors."
@@ -412,6 +446,193 @@ def _validate_datacore(markdown: str, profile: Profile) -> list[ValidationIssue]
                     severity="info",
                     message="Datacore block without 'from' clause may scan all files.",
                     suggestion="Add 'from: #tag' or 'from: folder' to limit scope.",
+                )
+            )
+    return issues
+
+
+def _validate_mermaid(markdown: str, profile: Profile) -> list[ValidationIssue]:
+    """Validate Mermaid diagram blocks.
+
+    Heuristic checks only; not a full Mermaid grammar parser. Targets the most
+    common breakages observed in Obsidian: unclosed fences, unknown diagram
+    keywords, unbalanced brackets, and unquoted special characters in flowchart
+    node labels (which produce 'Lexical error on line N. Unrecognized text.').
+    """
+    issues: list[ValidationIssue] = []
+
+    open_fences = len(MERMAID_OPEN_FENCE_RE.findall(markdown))
+    closed_blocks = len(MERMAID_BLOCK_RE.findall(markdown))
+    if open_fences > closed_blocks:
+        issues.append(
+            ValidationIssue(
+                pack="mermaid",
+                severity="error",
+                message="Mermaid block is not properly closed.",
+                suggestion="Close the fenced block with a matching ``` on its own line.",
+            )
+        )
+        return issues
+    if open_fences == 0:
+        return issues
+    allowed = set(profile.mermaid_allowed_diagrams) if profile.mermaid_allowed_diagrams else None
+    for match in MERMAID_BLOCK_RE.finditer(markdown):
+        body = match.group("body")
+        block_start_line = markdown[: match.start()].count("\n") + 1
+        issues.extend(_validate_mermaid_block(body, block_start_line, profile, allowed))
+    return issues
+
+
+def _validate_mermaid_block(
+    body: str,
+    block_start_line: int,
+    profile: Profile,
+    allowed: set[str] | None,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    body_lines = body.splitlines()
+    fence_line = block_start_line
+    first_nonblank_idx = next(
+        (i for i, line in enumerate(body_lines) if line.strip() and not line.strip().startswith("%%")),
+        None,
+    )
+    if first_nonblank_idx is None:
+        issues.append(
+            ValidationIssue(
+                pack="mermaid",
+                severity="warning",
+                line=fence_line,
+                message="Empty mermaid block.",
+                suggestion="Add a diagram type line such as 'flowchart TD'.",
+            )
+        )
+        return issues
+
+    first_line = body_lines[first_nonblank_idx].strip()
+    first_token = first_line.split()[0] if first_line else ""
+    diagram_line = fence_line + 1 + first_nonblank_idx
+    if first_token not in MERMAID_DIAGRAM_KEYWORDS:
+        issues.append(
+            ValidationIssue(
+                pack="mermaid",
+                severity="error",
+                line=diagram_line,
+                message=f"Unknown Mermaid diagram keyword: {first_token!r}.",
+                suggestion=(
+                    "Start the block with one of: flowchart, graph, sequenceDiagram, "
+                    "classDiagram, stateDiagram-v2, erDiagram, gantt, pie, gitGraph, "
+                    "mindmap, timeline, quadrantChart, requirementDiagram, C4Context."
+                ),
+            )
+        )
+        return issues
+
+    if allowed is not None and first_token not in allowed:
+        issues.append(
+            ValidationIssue(
+                pack="mermaid",
+                severity="warning",
+                line=diagram_line,
+                message=f"Diagram type {first_token!r} is not in the profile's mermaid_allowed_diagrams list.",
+                suggestion="Add the diagram type to the profile or switch to an allowed one.",
+            )
+        )
+
+    diagram_type = first_token
+    diagram_body_lines = body_lines[first_nonblank_idx + 1 :]
+    diagram_body_offset = fence_line + 1 + first_nonblank_idx + 1
+
+    if diagram_type in {"flowchart", "graph"}:
+        issues.extend(
+            _validate_mermaid_flowchart(
+                diagram_body_lines,
+                start_line=diagram_body_offset,
+                profile=profile,
+            )
+        )
+        issues.extend(_check_bracket_balance(diagram_body_lines, start_line=diagram_body_offset))
+    return issues
+
+
+def _validate_mermaid_flowchart(
+    body_lines: list[str],
+    start_line: int,
+    profile: Profile,
+) -> list[ValidationIssue]:
+    """Flowchart-specific checks: unquoted special chars in shape labels."""
+    issues: list[ValidationIssue] = []
+    shape_label_re = re.compile(
+        r"(?P<open>\{\{|\[\[|\[\(|\(\(|\[|\(|\{)(?P<label>[^\]\)\}\n]*?)(?P<close>\}\}|\]\]|\)\]|\)\)|\]|\)|\})"
+    )
+    for offset, line in enumerate(body_lines):
+        line_no = start_line + offset
+        stripped = line.strip()
+        if not stripped or stripped.startswith("%%"):
+            continue
+        if stripped.startswith("class ") or stripped.startswith("classDef ") or stripped.startswith("style ") or stripped.startswith("linkStyle ") or stripped.startswith("click "):
+            continue
+        if stripped.startswith("subgraph ") or stripped == "end" or stripped.startswith("direction "):
+            continue
+        for m in shape_label_re.finditer(line):
+            label = m.group("label")
+            if not label:
+                continue
+            stripped_label = label.strip()
+            if stripped_label.startswith('"') and stripped_label.endswith('"'):
+                continue
+            if MERMAID_SPECIAL_IN_LABEL_RE.search(stripped_label):
+                offending = MERMAID_SPECIAL_IN_LABEL_RE.search(stripped_label).group(0)
+                issues.append(
+                    ValidationIssue(
+                        pack="mermaid",
+                        severity="error",
+                        line=line_no,
+                        message=(
+                            f"Unquoted special character {offending!r} inside flowchart node label "
+                            f"{m.group(0)!r}. Mermaid's lexer will reject this."
+                        ),
+                        suggestion=(
+                            f'Wrap the label in double quotes, e.g. {m.group("open")}"{stripped_label}"{m.group("close")}.'
+                        ),
+                    )
+                )
+    return issues
+
+
+def _check_bracket_balance(body_lines: list[str], start_line: int) -> list[ValidationIssue]:
+    """Approximate balance check for the diagram body, ignoring quoted strings and comments."""
+    issues: list[ValidationIssue] = []
+    counts = {"[": 0, "]": 0, "(": 0, ")": 0, "{": 0, "}": 0}
+    for offset, raw_line in enumerate(body_lines):
+        stripped = raw_line.strip()
+        if stripped.startswith("%%"):
+            continue
+        scrubbed: list[str] = []
+        in_quote = False
+        for ch in raw_line:
+            if ch == '"':
+                in_quote = not in_quote
+                continue
+            if not in_quote:
+                scrubbed.append(ch)
+        line_text = "".join(scrubbed)
+        for ch in line_text:
+            if ch in counts:
+                counts[ch] += 1
+    pairs = [("[", "]"), ("(", ")"), ("{", "}")]
+    names = {"[": "square brackets", "(": "parentheses", "{": "curly braces"}
+    for opener, closer in pairs:
+        if counts[opener] != counts[closer]:
+            issues.append(
+                ValidationIssue(
+                    pack="mermaid",
+                    severity="error",
+                    line=start_line,
+                    message=(
+                        f"Unbalanced {names[opener]} in mermaid block "
+                        f"({counts[opener]} '{opener}' vs {counts[closer]} '{closer}')."
+                    ),
+                    suggestion=f"Ensure every '{opener}' has a matching '{closer}'.",
                 )
             )
     return issues
